@@ -102,6 +102,13 @@ public static class TaskOperations
         task.ProjectId = request.TargetProjectId;
         task.Order = nextOrder;
 
+        // Re-check immediately before the write: the target project could have been deleted by a
+        // concurrent request between the existence check above and this save. Without this,
+        // SQLite's FK enforcement would reject the UPDATE and EF Core would surface it as a
+        // DbUpdateException, which ExceptionHandlingMiddleware does not special-case and would
+        // therefore return an opaque 500 instead of a clean 404.
+        await EnsureProjectExistsAsync(db, request.TargetProjectId);
+
         await db.SaveChangesAsync();
 
         return ToResponse(task);
