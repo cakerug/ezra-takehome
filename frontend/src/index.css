@@ -184,7 +184,9 @@ button {
 }
 
 .new-project-form__error,
-.edit-project-form__error {
+.edit-project-form__error,
+.new-task-form__error,
+.edit-task-form__error {
   color: #c53030;
   font-size: 13px;
   margin: 0;

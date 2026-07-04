@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProjectResponse, TaskResponse } from '../api/types';
+import { ApiError } from '../api/client';
 import { TaskList, computeReorderedIds } from './TaskList';
 
 vi.mock('../api/client', async () => {
@@ -109,6 +110,35 @@ describe('TaskList', () => {
     expect(await screen.findByText('Walk dog')).toBeInTheDocument();
   });
 
+  it('shows a server-side validation error inline on the new-task form, and does not trigger the Toast', async () => {
+    const user = userEvent.setup();
+    mockListTasks.mockResolvedValueOnce([]);
+
+    const validationError = new ApiError(400, {
+      title: 'One or more validation errors occurred.',
+      status: 400,
+      errors: { Title: ['Title must be at most 200 characters.'] },
+    });
+    mockCreateTask.mockRejectedValueOnce(validationError);
+
+    renderTaskList();
+
+    await screen.findByText('No tasks yet.');
+
+    await user.type(screen.getByLabelText('Title'), 'A'.repeat(201));
+    await user.click(screen.getByRole('button', { name: 'Add task' }));
+
+    await waitFor(() => {
+      expect(mockCreateTask).toHaveBeenCalled();
+    });
+
+    expect(
+      await screen.findByText('Title must be at most 200 characters.'),
+    ).toBeInTheDocument();
+    // The validation error is shown inline on the form, not via the generic Toast.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('completing a task strikes it through, moves it to the bottom, and persists via the API (AE1)', async () => {
     const user = userEvent.setup();
     const first = makeTask({ id: 1, title: 'First', order: 0 });
@@ -171,6 +201,42 @@ describe('TaskList', () => {
 
     expect(await screen.findByText('New title')).toBeInTheDocument();
     expect(screen.queryByText('Old title')).not.toBeInTheDocument();
+  });
+
+  it('shows a server-side validation error inline on the edit-task form, and does not trigger the Toast', async () => {
+    const user = userEvent.setup();
+    const task = makeTask({ id: 1, title: 'Old title' });
+    mockListTasks.mockResolvedValue([task]);
+
+    const validationError = new ApiError(400, {
+      title: 'One or more validation errors occurred.',
+      status: 400,
+      errors: { Title: ['Title must be at most 200 characters.'] },
+    });
+    mockUpdateTask.mockRejectedValueOnce(validationError);
+
+    renderTaskList();
+
+    await screen.findByText('Old title');
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+
+    const form = screen.getByRole('form', { name: 'Edit Old title' });
+    const titleInput = within(form).getByLabelText('Title');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'A'.repeat(201));
+
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockUpdateTask).toHaveBeenCalled();
+    });
+
+    expect(
+      await within(form).findByText('Title must be at most 200 characters.'),
+    ).toBeInTheDocument();
+    // The validation error is shown inline on the form, not via the generic Toast.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('deletes a task via the confirm dialog', async () => {
@@ -275,6 +341,15 @@ describe('TaskList', () => {
     await waitFor(() => {
       expect(screen.queryByText('Movable task')).not.toBeInTheDocument();
     });
+  });
+
+  it('shows the empty-state message instead of a blank list when a project has no tasks', async () => {
+    mockListTasks.mockResolvedValueOnce([]);
+
+    renderTaskList();
+
+    expect(await screen.findByText('No tasks yet.')).toBeInTheDocument();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 });
 

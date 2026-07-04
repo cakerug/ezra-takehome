@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  ApiError,
   completeTask,
   deleteTask,
   moveTask,
@@ -200,7 +201,11 @@ interface EditTaskFormProps {
 }
 
 /** Inline edit form (title + description) shown in place of the task row while editing, mirroring
- * `ProjectSidebar`'s `EditProjectForm`. */
+ * `ProjectSidebar`'s `EditProjectForm`. Validation failures (an `ApiError` carrying a non-empty
+ * `problem.errors` map) render inline in this form, next to the fields they describe, rather than
+ * routed through `onError`/`Toast` -- mirroring `EditProjectForm`'s existing inline-error pattern.
+ * Any other failure (network error, 500, or an `ApiError` with no `errors` map) still goes through
+ * `onError` so `TaskList` can show it in the shared `Toast`, exactly as before. */
 function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(task.title);
@@ -217,7 +222,10 @@ function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
       onDone();
     },
     onError: (error: unknown) => {
-      onError(extractErrorMessage(error, 'Failed to update task.'));
+      const isValidationError = error instanceof ApiError && !!error.problem?.errors;
+      if (!isValidationError) {
+        onError(extractErrorMessage(error, 'Failed to update task.'));
+      }
     },
   });
 
@@ -225,6 +233,11 @@ function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
     event.preventDefault();
     mutation.mutate();
   }
+
+  const inlineErrorMessage =
+    mutation.error instanceof ApiError && mutation.error.problem?.errors
+      ? Object.values(mutation.error.problem.errors).flat().join(' ')
+      : null;
 
   return (
     <form className="edit-task-form" onSubmit={handleSubmit} aria-label={`Edit ${task.title}`}>
@@ -245,6 +258,7 @@ function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
           rows={2}
         />
       </label>
+      {inlineErrorMessage && <p className="edit-task-form__error">{inlineErrorMessage}</p>}
       <div className="edit-task-form__actions">
         <button type="button" onClick={onDone} disabled={mutation.isPending}>
           Cancel

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createTask } from '../api/client';
+import { ApiError, createTask } from '../api/client';
 import { extractErrorMessage } from '../api/errors';
 
 interface NewTaskFormProps {
@@ -14,8 +14,13 @@ interface NewTaskFormProps {
  * `NewProjectForm`'s shape: posts via a React Query mutation and, on success, invalidates the
  * project's task list query so `TaskList` refetches from the server -- per the plan's
  * pessimistic-update rule, the new task only appears once the server has confirmed it.
- * On failure, reports the error message up via `onError` so `TaskList` can surface it in the
- * shared `Toast`, rather than rendering an inline error itself.
+ *
+ * Error handling distinguishes two shapes, mirroring `NewProjectForm`'s existing inline-error
+ * pattern: a server-side field validation failure (`ApiError` with a non-empty `problem.errors`
+ * map) is rendered inline in this form, next to the fields it describes, rather than routed
+ * through the generic `Toast` -- a "title too long" message belongs next to the title field, not
+ * in a banner. Any other failure (network error, 500, or an `ApiError` with no `errors` map) is
+ * reported up via `onError` so `TaskList` can surface it in the shared `Toast`, exactly as before.
  */
 export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
   const queryClient = useQueryClient();
@@ -34,7 +39,10 @@ export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
       setDescription('');
     },
     onError: (error: unknown) => {
-      onError(extractErrorMessage(error, 'Failed to create task.'));
+      const isValidationError = error instanceof ApiError && !!error.problem?.errors;
+      if (!isValidationError) {
+        onError(extractErrorMessage(error, 'Failed to create task.'));
+      }
     },
   });
 
@@ -42,6 +50,11 @@ export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
     event.preventDefault();
     mutation.mutate();
   }
+
+  const inlineErrorMessage =
+    mutation.error instanceof ApiError && mutation.error.problem?.errors
+      ? Object.values(mutation.error.problem.errors).flat().join(' ')
+      : null;
 
   return (
     <form className="new-task-form" onSubmit={handleSubmit}>
@@ -63,6 +76,7 @@ export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
           rows={2}
         />
       </label>
+      {inlineErrorMessage && <p className="new-task-form__error">{inlineErrorMessage}</p>}
       <button type="submit" disabled={mutation.isPending || title.trim().length === 0}>
         {mutation.isPending ? 'Adding…' : 'Add task'}
       </button>
