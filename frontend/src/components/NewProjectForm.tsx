@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiError, createProject } from '../api/client';
+import { createProject } from '../api/client';
+import { extractErrorMessage } from '../api/errors';
 
 /**
  * "New project" form (name + description). Posts via a React Query mutation; on success,
@@ -32,14 +33,9 @@ export function NewProjectForm() {
     mutation.mutate();
   }
 
-  const errorMessage =
-    mutation.error instanceof ApiError
-      ? (mutation.error.problem?.errors
-          ? Object.values(mutation.error.problem.errors).flat().join(' ')
-          : mutation.error.message)
-      : mutation.error
-        ? 'Failed to create project.'
-        : null;
+  const errorMessage = mutation.error
+    ? extractErrorMessage(mutation.error, 'Failed to create project.')
+    : null;
 
   return (
     <form className="new-project-form" onSubmit={handleSubmit}>

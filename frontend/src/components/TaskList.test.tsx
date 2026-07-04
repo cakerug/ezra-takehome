@@ -30,6 +30,7 @@ import {
   listTasks,
   moveTask,
   reorderTasks,
+  uncompleteTask,
   updateTask,
 } from '../api/client';
 
@@ -39,6 +40,7 @@ const mockCreateTask = vi.mocked(createTask);
 const mockUpdateTask = vi.mocked(updateTask);
 const mockDeleteTask = vi.mocked(deleteTask);
 const mockCompleteTask = vi.mocked(completeTask);
+const mockUncompleteTask = vi.mocked(uncompleteTask);
 const mockMoveTask = vi.mocked(moveTask);
 const mockReorderTasks = vi.mocked(reorderTasks);
 
@@ -77,6 +79,7 @@ beforeEach(() => {
   mockUpdateTask.mockReset();
   mockDeleteTask.mockReset();
   mockCompleteTask.mockReset();
+  mockUncompleteTask.mockReset();
   mockMoveTask.mockReset();
   mockReorderTasks.mockReset();
   mockListProjects.mockResolvedValue([inbox, work]);
@@ -167,6 +170,35 @@ describe('TaskList', () => {
     const items = screen.getAllByRole('listitem');
     const titles = items.map((item) => within(item).queryByText(/First|Second/)?.textContent);
     expect(titles).toEqual(['Second', 'First']);
+  });
+
+  it('reopening a completed task calls uncompleteTask and removes the completed styling (AE1)', async () => {
+    const user = userEvent.setup();
+    const completed = makeTask({
+      id: 1,
+      title: 'Done task',
+      isComplete: true,
+      completedAt: '2026-07-01T00:00:00Z',
+    });
+    mockListTasks.mockResolvedValueOnce([completed]);
+
+    const reopened = { ...completed, isComplete: false, completedAt: null };
+    mockUncompleteTask.mockResolvedValueOnce(reopened);
+    mockListTasks.mockResolvedValueOnce([reopened]);
+
+    renderTaskList();
+
+    const titleBeforeReopen = await screen.findByText('Done task');
+    expect(titleBeforeReopen).toHaveClass('task-item__title--complete');
+
+    await user.click(screen.getByLabelText('Mark "Done task" incomplete'));
+
+    await waitFor(() => {
+      expect(mockUncompleteTask).toHaveBeenCalledWith(1);
+    });
+
+    const titleAfterReopen = await screen.findByText('Done task');
+    expect(titleAfterReopen).not.toHaveClass('task-item__title--complete');
   });
 
   it('edits a task and updates its displayed title/description', async () => {
@@ -349,6 +381,15 @@ describe('TaskList', () => {
     renderTaskList();
 
     expect(await screen.findByText('No tasks yet.')).toBeInTheDocument();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('shows an error message when the tasks query fails', async () => {
+    mockListTasks.mockRejectedValueOnce(new Error('network down'));
+
+    renderTaskList();
+
+    expect(await screen.findByText('Failed to load tasks: network down')).toBeInTheDocument();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 });

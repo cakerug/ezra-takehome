@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProjectResponse } from '../api/types';
+import { ApiError } from '../api/client';
 import { ProjectSidebar } from './ProjectSidebar';
 
 vi.mock('../api/client', async () => {
@@ -85,6 +86,35 @@ describe('ProjectSidebar', () => {
     expect(mockListProjects).toHaveBeenCalledTimes(2);
   });
 
+  it('shows a server-side validation error inline on the new-project form, and does not trigger the Toast', async () => {
+    const user = userEvent.setup();
+    mockListProjects.mockResolvedValueOnce([inbox]);
+
+    const validationError = new ApiError(400, {
+      title: 'One or more validation errors occurred.',
+      status: 400,
+      errors: { Name: ['Name must be at most 100 characters.'] },
+    });
+    mockCreateProject.mockRejectedValueOnce(validationError);
+
+    renderSidebar();
+
+    await screen.findByText('Inbox');
+
+    await user.type(screen.getByLabelText('Name'), 'A'.repeat(101));
+    await user.click(screen.getByRole('button', { name: 'Add project' }));
+
+    await waitFor(() => {
+      expect(mockCreateProject).toHaveBeenCalled();
+    });
+
+    expect(
+      await screen.findByText('Name must be at most 100 characters.'),
+    ).toBeInTheDocument();
+    // The validation error is shown inline on the form, not via the generic Toast.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('edits a project and updates its displayed name', async () => {
     const user = userEvent.setup();
     mockListProjects.mockResolvedValueOnce([inbox, work]);
@@ -124,6 +154,42 @@ describe('ProjectSidebar', () => {
 
     expect(await screen.findByText('Work Renamed')).toBeInTheDocument();
     expect(screen.queryByText('Work', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('shows a server-side validation error inline on the edit-project form, and does not trigger the Toast', async () => {
+    const user = userEvent.setup();
+    mockListProjects.mockResolvedValueOnce([inbox, work]);
+
+    const validationError = new ApiError(400, {
+      title: 'One or more validation errors occurred.',
+      status: 400,
+      errors: { Name: ['Name must be at most 100 characters.'] },
+    });
+    mockUpdateProject.mockRejectedValueOnce(validationError);
+
+    renderSidebar();
+
+    await screen.findByText('Work');
+
+    await user.click(screen.getByRole('button', { name: 'Edit Work' }));
+
+    const editForm = screen.getByRole('form', { name: 'Edit Work' });
+
+    const nameInput = within(editForm).getByLabelText('Name');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'A'.repeat(101));
+
+    await user.click(within(editForm).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockUpdateProject).toHaveBeenCalled();
+    });
+
+    expect(
+      await within(editForm).findByText('Name must be at most 100 characters.'),
+    ).toBeInTheDocument();
+    // The validation error is shown inline on the form, not via the generic Toast.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('never renders a delete control for the default (Inbox) project', async () => {

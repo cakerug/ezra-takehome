@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, deleteProject, listProjects, updateProject } from '../api/client';
+import { deleteProject, listProjects, updateProject } from '../api/client';
 import type { ProjectResponse } from '../api/types';
+import { extractErrorMessage } from '../api/errors';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewProjectForm } from './NewProjectForm';
 
@@ -130,14 +131,9 @@ function EditProjectForm({ project, onDone }: EditProjectFormProps) {
     mutation.mutate();
   }
 
-  const errorMessage =
-    mutation.error instanceof ApiError
-      ? (mutation.error.problem?.errors
-          ? Object.values(mutation.error.problem.errors).flat().join(' ')
-          : mutation.error.message)
-      : mutation.error
-        ? 'Failed to update project.'
-        : null;
+  const errorMessage = mutation.error
+    ? extractErrorMessage(mutation.error, 'Failed to update project.')
+    : null;
 
   return (
     <form
@@ -196,12 +192,9 @@ function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
     },
   });
 
-  const errorMessage =
-    mutation.error instanceof ApiError
-      ? mutation.error.message
-      : mutation.error
-        ? 'Failed to delete project.'
-        : null;
+  const errorMessage = mutation.error
+    ? extractErrorMessage(mutation.error, 'Failed to delete project.')
+    : null;
 
   return (
     <>
