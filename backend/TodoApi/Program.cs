@@ -29,6 +29,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.MapGet("/", () => "Hello World!");
 
 app.MapProjectEndpoints();
+app.MapTaskEndpoints();
 
 app.Run();
 
