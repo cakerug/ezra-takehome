@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
+using TodoApi.Endpoints;
 using TodoApi.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,8 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.MapGet("/", () => "Hello World!");
+
+app.MapProjectEndpoints();
 
 app.Run();
 
