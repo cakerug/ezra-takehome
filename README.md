@@ -33,9 +33,14 @@ dotnet run
   restarts.
 - Interactive API docs (Swagger UI) are available at `http://localhost:5265/swagger` once the
   server is running.
+- A liveness endpoint is exposed at `http://localhost:5265/health` (returns `200 Healthy`) for
+  uptime checks.
+- Each request is tagged with a correlation ID (read from the `X-Correlation-Id` request header or
+  generated), echoed back in the response header of the same name and included in every log line
+  emitted while handling the request, so a request can be traced end-to-end in the console output.
 
-Run the backend test suite (35 xUnit tests: unit + integration, including cascade-delete against
-a real SQLite connection) from `backend/`:
+Run the backend test suite (xUnit unit + integration tests, including cascade-delete against a
+real SQLite connection) from `backend/`:
 
 ```bash
 cd backend
@@ -51,9 +56,10 @@ npm run dev
 ```
 
 - Serves on `http://localhost:5173` by default (Vite's default port).
-- The API base URL is controlled by the `VITE_API_BASE_URL` env var (see `frontend/.env`),
-  defaulting to `http://localhost:5265` to match the backend's default port. Override it if you
-  run the backend on a different port.
+- The API base URL is controlled by the `VITE_API_BASE_URL` env var, defaulting to
+  `http://localhost:5265` to match the backend's default port. To override it, copy
+  `frontend/.env.example` to `frontend/.env` and edit the value (the `.env` file itself is
+  gitignored).
 - The backend's CORS policy explicitly allows `http://localhost:5173` as the frontend origin; if
   you change the frontend's dev port, update the CORS policy in `backend/TodoApi/Program.cs` too.
 
@@ -135,6 +141,27 @@ more defensible MVP within the take-home's scope.
 - This app is local/dev-oriented given the no-auth design and is **not intended for public
   internet exposure** — stated here explicitly rather than left as an assumption a reviewer has
   to infer.
+- **No security headers or HTTPS redirection.** Appropriate for a localhost dev app, but before
+  any public exposure I'd add HSTS, `X-Content-Type-Options: nosniff`, a request-size limit, and
+  TLS termination — alongside the authentication and rate limiting noted below.
+
+### Known limitations accepted for this MVP
+
+Small things I deliberately left as-is rather than build out, noted here so they're decisions
+rather than gaps:
+
+- **The "move to project" control is a native `<select>`.** On some platforms, arrow-keying
+  through a closed select fires the move on each keystroke. The robust fix is a custom menu button;
+  it wasn't worth the extra component for this scope, and the API contract wouldn't change.
+- **The Inbox project can be renamed** (only its *deletion* is blocked). Renaming is harmless — it
+  stays the seeded default — so no guard was added.
+- **`ConfirmDialog` implements Escape-to-close and focus-on-open, but not a full focus trap.** The
+  two behaviors a user actually reaches for are covered; trapping Tab within the modal is the
+  remaining a11y refinement.
+- **Reordering is pessimistic and single-flight in spirit.** Starting a second drag before the
+  first reorder's response lands could compute from stale order; harmless at single-user scale, and
+  the backend rejects any task-set mismatch. Concurrent writes that do slip through (e.g. moving a
+  task into a project being deleted) return a `409 Conflict` rather than an opaque 500.
 
 ## What I'd do differently at scale / future work
 
@@ -164,9 +191,10 @@ production:
 
 ## How I verified it works
 
-- **Automated tests:** `dotnet test` (35 backend tests: unit + integration, including cascade-
-  delete against a real SQLite connection) and `npm test` (frontend component tests with Vitest +
-  React Testing Library, mocking the API client) both pass with zero failures.
+- **Automated tests:** `dotnet test` (backend unit + integration tests, including cascade-delete
+  against a real SQLite connection, correlation-ID propagation into logs, and concurrent-update
+  conflict mapping) and `npm test` (frontend component tests with Vitest + React Testing Library,
+  mocking the API client) both pass with zero failures.
 - **Manual walkthrough:** ran both servers locally and walked the golden path in the browser —
   create a project, add tasks, reorder them, move a task to another project, complete a task,
   delete a task, delete a project (with confirmation) — checking the browser console for
