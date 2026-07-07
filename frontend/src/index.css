@@ -4,12 +4,19 @@
   --bg: #ffffff;
   --bg-muted: #f6f7f9;
   --border: #e5e4e7;
-  --accent: #3b6ef6;
+  /* Darkened from #3b6ef6 to clear WCAG AA (4.5:1) for white text on the selected sidebar item
+     and primary buttons. */
+  --accent: #2b5cd9;
+  --accent-hover: #234ec0;
+  --danger: var(--danger);
+  --danger-hover: #a52626;
 
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);
   color-scheme: light;
+  /* Theme native checkboxes and the move-to-project <select> in the app's accent color. */
+  accent-color: var(--accent);
 }
 
 * {
@@ -28,6 +35,54 @@ button {
   font: inherit;
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Shared button styles so form and dialog actions share one visual language instead of falling
+   back to native OS button chrome. Icon/text-only affordances (sidebar/task row actions, the drag
+   handle, the toast dismiss) keep their own minimal styling and deliberately don't use these. */
+.btn {
+  font: inherit;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn--secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--bg-muted);
+}
+
+.btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+
 .layout {
   display: flex;
   min-height: 100svh;
@@ -43,6 +98,25 @@ button {
 .layout__content {
   flex: 1;
   padding: 24px;
+}
+
+.content__title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.content__description {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.content__empty {
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 .project-sidebar {
@@ -63,7 +137,7 @@ button {
 }
 
 .project-sidebar__status--error {
-  color: #c53030;
+  color: var(--danger);
 }
 
 .project-sidebar__list {
@@ -94,6 +168,13 @@ button {
 .project-sidebar__item--selected {
   background: var(--accent);
   color: white;
+}
+
+/* Keep the accent background (and white text) on hover of the already-selected item. Without
+   this, the generic item:hover rule wins and flips the background to light gray while the text
+   stays white -- effectively invisible. */
+.project-sidebar__item--selected:hover {
+  background: var(--accent);
 }
 
 .project-sidebar__row {
@@ -132,7 +213,7 @@ button {
 }
 
 .project-sidebar__action--danger:hover {
-  color: #c53030;
+  color: var(--danger);
 }
 
 .new-project-form,
@@ -187,7 +268,7 @@ button {
 .edit-project-form__error,
 .new-task-form__error,
 .edit-task-form__error {
-  color: #c53030;
+  color: var(--danger);
   font-size: 13px;
   margin: 0;
 }
@@ -220,35 +301,26 @@ button {
 .confirm-dialog__title {
   margin: 0 0 8px;
   font-size: 16px;
+  overflow-wrap: anywhere;
 }
 
 .confirm-dialog__message {
   margin: 0 0 16px;
   color: var(--text-muted);
   font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.confirm-dialog__error {
+  margin: 0 0 16px;
+  color: var(--danger);
+  font-size: 13px;
 }
 
 .confirm-dialog__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.confirm-dialog__confirm {
-  background: #c53030;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
-  cursor: pointer;
-}
-
-.confirm-dialog__actions button:not(.confirm-dialog__confirm) {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 14px;
-  cursor: pointer;
 }
 
 .task-list {
@@ -262,7 +334,7 @@ button {
 }
 
 .task-list__status--error {
-  color: #c53030;
+  color: var(--danger);
 }
 
 .task-list__items {
@@ -286,7 +358,12 @@ button {
 }
 
 .task-item--dragging {
-  opacity: 0.5;
+  /* Lift the dragged row above its siblings with elevation instead of just fading it -- without a
+     stacking context and shadow, it paints beneath later rows and reads as broken. */
+  position: relative;
+  z-index: 1;
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
 }
 
 .task-item__drag-handle {
@@ -296,6 +373,10 @@ button {
   cursor: grab;
   padding: 2px 4px;
   line-height: 1.5;
+}
+
+.task-item__drag-handle:active {
+  cursor: grabbing;
 }
 
 .task-item__checkbox {
@@ -310,6 +391,7 @@ button {
 .task-item__title {
   margin: 0;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .task-item__title--complete {
@@ -321,6 +403,7 @@ button {
   margin: 4px 0 0;
   font-size: 13px;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .task-item__description--complete {
@@ -353,7 +436,7 @@ button {
 }
 
 .task-item__action--danger:hover {
-  color: #c53030;
+  color: var(--danger);
 }
 
 .new-task-form,
@@ -417,7 +500,7 @@ button {
   gap: 12px;
   max-width: 360px;
   padding: 12px 16px;
-  background: #c53030;
+  background: var(--danger);
   color: white;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 20%);

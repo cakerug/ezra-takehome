@@ -77,7 +77,11 @@ export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
         />
       </label>
       {inlineErrorMessage && <p className="new-task-form__error">{inlineErrorMessage}</p>}
-      <button type="submit" disabled={mutation.isPending || title.trim().length === 0}>
+      <button
+        type="submit"
+        className="btn btn--primary"
+        disabled={mutation.isPending || title.trim().length === 0}
+      >
         {mutation.isPending ? 'Adding…' : 'Add task'}
       </button>
     </form>

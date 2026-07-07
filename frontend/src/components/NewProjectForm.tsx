@@ -58,7 +58,11 @@ export function NewProjectForm() {
         />
       </label>
       {errorMessage && <p className="new-project-form__error">{errorMessage}</p>}
-      <button type="submit" disabled={mutation.isPending || name.trim().length === 0}>
+      <button
+        type="submit"
+        className="btn btn--primary"
+        disabled={mutation.isPending || name.trim().length === 0}
+      >
         {mutation.isPending ? 'Creating…' : 'Add project'}
       </button>
     </form>
