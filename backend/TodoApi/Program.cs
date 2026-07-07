@@ -7,6 +7,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
 
+// Render scopes on each console log line so the correlation ID established by
+// CorrelationIdMiddleware is visible in the logs (satisfies R14's "trace a request" end-to-end,
+// not just as an echoed response header). AddSimpleConsole reconfigures the console provider the
+// host already registered rather than adding a second one.
+builder.Logging.AddSimpleConsole(options => options.IncludeScopes = true);
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Data Source=todo.db;Foreign Keys=True";
 
@@ -15,6 +21,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 
 // The frontend runs on Vite's default dev port. No credentials/cookies are involved (no auth
 // yet), so a simple allow-list of the dev origin plus the methods/headers the API actually uses
@@ -55,7 +62,9 @@ app.UseSwaggerUI();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-app.MapGet("/", () => "Hello World!");
+// Liveness probe for uptime checks / container orchestrators. Cheap production-readiness signal;
+// returns 200 "Healthy" without touching the database.
+app.MapHealthChecks("/health");
 
 app.MapProjectEndpoints();
 app.MapTaskEndpoints();

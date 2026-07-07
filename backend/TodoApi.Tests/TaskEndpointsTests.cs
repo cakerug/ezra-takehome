@@ -400,6 +400,28 @@ public class TaskEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task Complete_IsIdempotent_KeepsOriginalCompletedAtOnRepeat()
+    {
+        var client = _factory.CreateClient();
+        var projectId = await CreateProjectAsync(client, "Work");
+        var task = await CreateTaskAsync(client, projectId, "Ship it");
+
+        var firstResponse = await client.PutAsync($"/api/tasks/{task.Id}/complete", null);
+        firstResponse.EnsureSuccessStatusCode();
+        var firstCompleted = await firstResponse.Content.ReadFromJsonAsync<TaskResponse>();
+        Assert.NotNull(firstCompleted!.CompletedAt);
+
+        // Re-completing an already-complete task is a no-op: the original timestamp is preserved
+        // rather than being reset to "now".
+        var secondResponse = await client.PutAsync($"/api/tasks/{task.Id}/complete", null);
+        secondResponse.EnsureSuccessStatusCode();
+        var secondCompleted = await secondResponse.Content.ReadFromJsonAsync<TaskResponse>();
+
+        Assert.True(secondCompleted!.IsComplete);
+        Assert.Equal(firstCompleted.CompletedAt, secondCompleted.CompletedAt);
+    }
+
+    [Fact]
     public async Task CreatingTaskWithTitleExceeding200Characters_Returns400ValidationError()
     {
         var client = _factory.CreateClient();

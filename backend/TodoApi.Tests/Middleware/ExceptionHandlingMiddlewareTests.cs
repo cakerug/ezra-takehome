@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using TodoApi.Exceptions;
 using ValidationException = TodoApi.Exceptions.ValidationException;
 
@@ -38,6 +39,7 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
                     endpoints.MapGet("/test/not-found", TestEndpoints.NotFound);
                     endpoints.MapGet("/test/invalid", TestEndpoints.Invalid);
                     endpoints.MapGet("/test/forbidden", TestEndpoints.Forbidden);
+                    endpoints.MapGet("/test/conflict", TestEndpoints.Conflict);
                     endpoints.MapGet("/test/boom", TestEndpoints.Boom);
                 });
             });
@@ -107,6 +109,28 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task DbUpdateException_Yields409WithoutLeakingInternalDetails()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/test/conflict");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        // The underlying EF/database detail must not reach the client; only a generic retry hint.
+        Assert.DoesNotContain("simulated concurrent update", body);
+
+        using var json = JsonDocument.Parse(body);
+        var root = json.RootElement;
+
+        Assert.Equal(409, root.GetProperty("status").GetInt32());
+        Assert.Contains("retry", root.GetProperty("detail").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ForbiddenOperationException_Yields403WithProblemDetailsShape()
     {
         var client = _factory.CreateClient();
@@ -138,6 +162,11 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
         public static IResult Forbidden()
         {
             throw new ForbiddenOperationException("The Inbox project cannot be deleted.");
+        }
+
+        public static IResult Conflict()
+        {
+            throw new DbUpdateException("simulated concurrent update conflict");
         }
 
         public static IResult Boom()

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TodoApi.Exceptions;
 using ValidationException = TodoApi.Exceptions.ValidationException;
 
@@ -11,6 +12,9 @@ namespace TodoApi.Middleware;
 ///   - <see cref="NotFoundException"/> -> 404
 ///   - <see cref="ValidationException"/> -> 400, with per-field errors
 ///   - <see cref="ForbiddenOperationException"/> -> 403
+///   - <see cref="DbUpdateException"/> -> 409; a concurrent request changed or removed a row this
+///     request depended on (e.g. a task's target project was deleted mid-move). Covers the move,
+///     reorder, and delete races in one place so the operations don't each need a re-check.
 ///   - anything else -> 500, generic body only; the real exception is logged server-side and
 ///     never leaked (no stack trace, no exception message) to the client.
 ///
@@ -36,7 +40,8 @@ public class ExceptionHandlingMiddleware
         }
         catch (NotFoundException ex)
         {
-            _logger.LogWarning(ex, "Resource not found: {Message}", ex.Message);
+            // Expected control flow, not a fault: log the message only, no stack trace.
+            _logger.LogWarning("Resource not found: {Message}", ex.Message);
             await WriteProblemDetailsAsync(
                 context,
                 StatusCodes.Status404NotFound,
@@ -45,17 +50,29 @@ public class ExceptionHandlingMiddleware
         }
         catch (ValidationException ex)
         {
-            _logger.LogWarning(ex, "Validation failed: {Message}", ex.Message);
+            _logger.LogWarning("Validation failed: {Message}", ex.Message);
             await WriteValidationProblemDetailsAsync(context, ex);
         }
         catch (ForbiddenOperationException ex)
         {
-            _logger.LogWarning(ex, "Forbidden operation: {Message}", ex.Message);
+            _logger.LogWarning("Forbidden operation: {Message}", ex.Message);
             await WriteProblemDetailsAsync(
                 context,
                 StatusCodes.Status403Forbidden,
                 "Forbidden",
                 ex.Message);
+        }
+        catch (DbUpdateException ex)
+        {
+            // A concurrent request changed or removed a row this one depended on (e.g. the target
+            // project was deleted between validation and save). Keep full detail server-side for
+            // diagnosis, but return a clean 409 rather than an opaque 500.
+            _logger.LogWarning(ex, "Concurrent update conflict while processing request {Path}", context.Request.Path);
+            await WriteProblemDetailsAsync(
+                context,
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                "The resource was modified or removed by another request. Please retry.");
         }
         catch (Exception ex)
         {

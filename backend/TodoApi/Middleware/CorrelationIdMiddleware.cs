@@ -35,7 +35,12 @@ public class CorrelationIdMiddleware
             return Task.CompletedTask;
         });
 
-        using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId }))
+        // A message-template scope (not a Dictionary) so the ID renders usefully in both formatters:
+        // the default simple console formatter prints the scope's formatted string
+        // ("CorrelationId:<id>"), while structured sinks (e.g. JSON console) still see a
+        // "CorrelationId" key/value pair. A Dictionary scope would ToString() to its type name in
+        // the simple formatter, leaving the ID invisible in the logs a reviewer actually reads.
+        using (_logger.BeginScope("CorrelationId:{CorrelationId}", correlationId))
         {
             await _next(context);
         }

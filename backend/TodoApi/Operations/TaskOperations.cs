@@ -25,6 +25,7 @@ public static class TaskOperations
         var tasks = await db.Tasks
             .Where(t => t.ProjectId == projectId)
             .OrderBy(t => t.Order)
+            .ThenBy(t => t.Id)
             .ToListAsync();
 
         return tasks.Select(ToResponse).ToList();
@@ -83,6 +84,13 @@ public static class TaskOperations
     {
         var task = await FindTaskOrThrowAsync(db, id);
 
+        // Idempotent: a repeat of the same state is a no-op, so re-completing an already-complete
+        // task keeps its original CompletedAt rather than resetting the timestamp.
+        if (task.IsComplete == isComplete)
+        {
+            return ToResponse(task);
+        }
+
         task.IsComplete = isComplete;
         task.CompletedAt = isComplete ? DateTime.UtcNow : null;
 
@@ -102,13 +110,10 @@ public static class TaskOperations
         task.ProjectId = request.TargetProjectId;
         task.Order = nextOrder;
 
-        // Re-check immediately before the write: the target project could have been deleted by a
-        // concurrent request between the existence check above and this save. Without this,
-        // SQLite's FK enforcement would reject the UPDATE and EF Core would surface it as a
-        // DbUpdateException, which ExceptionHandlingMiddleware does not special-case and would
-        // therefore return an opaque 500 instead of a clean 404.
-        await EnsureProjectExistsAsync(db, request.TargetProjectId);
-
+        // If the target project is deleted concurrently between the check above and this save,
+        // SQLite's FK enforcement rejects the UPDATE and EF Core throws DbUpdateException, which
+        // ExceptionHandlingMiddleware maps to a clean 409 Conflict. No re-check needed here — a
+        // re-check can't close the window anyway (the delete can still land after it).
         await db.SaveChangesAsync();
 
         return ToResponse(task);
