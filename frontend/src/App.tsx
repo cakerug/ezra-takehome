@@ -5,30 +5,32 @@ import type { SelectedProjectId } from './components/ProjectSidebar';
 import { TaskList } from './components/TaskList';
 
 function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProjectId }) {
-  // Shares the `['projects']` query cache with ProjectSidebar, so this doesn't trigger an
+  // Shares the `['projects']` query cache with ProjectSidebar/Layout, so this doesn't trigger an
   // extra network request.
   const { data: projects } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
 
-  if (selectedProjectId === null) {
-    return <p>Select a project</p>;
-  }
+  const selectedProject =
+    selectedProjectId === null
+      ? undefined
+      : projects?.find((project) => project.id === selectedProjectId);
 
-  const selectedProject = projects?.find((project) => project.id === selectedProjectId);
-
-  // `projects` has loaded but no longer contains the selected id -- the project was deleted
-  // (e.g. from another tab, or just now via the sidebar). Fall back to the same empty state as
-  // "nothing selected" rather than getting stuck showing "Loading..." forever.
-  if (projects && !selectedProject) {
-    return <p>Select a project</p>;
+  // No resolved selection yet: either the initial load before Layout auto-selects the default
+  // project, or the brief gap after deleting the selected project before re-selection lands.
+  // Show a neutral placeholder rather than a blank pane.
+  if (!selectedProject) {
+    return <p className="content__empty">Loading…</p>;
   }
 
   return (
     <>
-      <h1>{selectedProject?.name ?? 'Loading…'}</h1>
-      <TaskList projectId={selectedProjectId} />
+      <h1 className="content__title">{selectedProject.name}</h1>
+      {selectedProject.description && (
+        <p className="content__description">{selectedProject.description}</p>
+      )}
+      <TaskList projectId={selectedProject.id} />
     </>
   );
 }

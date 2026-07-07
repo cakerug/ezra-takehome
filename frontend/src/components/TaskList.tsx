@@ -75,10 +75,10 @@ export function computeReorderedIds(
  * is out of scope; moving projects is done via each `TaskItem`'s dropdown, per F1).
  *
  * Pessimistic by design: dragging computes a new local order for immediate visual feedback during
- * the gesture, but on drop it sends the full reordered id list to `reorderTasks` and only trusts
- * the refetched server state afterward (via `invalidateQueries`) -- if the mutation fails, the
- * query cache (and therefore the rendered list) is untouched, so the list reverts to its
- * last-known-good order automatically.
+ * the gesture, but on drop it sends the full reordered id list to `reorderTasks` and adopts the
+ * order only from the server's authoritative response (written into the cache on success) -- if
+ * the mutation fails, the query cache (and therefore the rendered list) is untouched, so the list
+ * reverts to its last-known-good order automatically.
  */
 export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
@@ -109,8 +109,12 @@ export function TaskList({ projectId }: TaskListProps) {
   const reorderMutation = useMutation({
     mutationFn: (orderedTaskIds: number[]) =>
       reorderTasks(projectId, { orderedTaskIds }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+    onSuccess: (updatedTasks) => {
+      // Write the server-confirmed order straight into the cache instead of invalidating. This
+      // stays fully pessimistic (it's authoritative server data, not an optimistic guess) but
+      // avoids the extra refetch round trip -- during which the list would briefly snap back to
+      // the pre-drag order and read as a failed drag.
+      queryClient.setQueryData(['tasks', projectId], updatedTasks);
     },
     onError: (error: unknown) => {
       setErrorMessage(extractErrorMessage(error, 'Failed to reorder tasks.'));

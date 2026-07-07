@@ -160,10 +160,19 @@ function EditProjectForm({ project, onDone }: EditProjectFormProps) {
       </label>
       {errorMessage && <p className="edit-project-form__error">{errorMessage}</p>}
       <div className="edit-project-form__actions">
-        <button type="button" onClick={onDone} disabled={mutation.isPending}>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          onClick={onDone}
+          disabled={mutation.isPending}
+        >
           Cancel
         </button>
-        <button type="submit" disabled={mutation.isPending || name.trim().length === 0}>
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={mutation.isPending || name.trim().length === 0}
+        >
           {mutation.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
@@ -197,20 +206,14 @@ function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
     : null;
 
   return (
-    <>
-      <ConfirmDialog
-        title={`Delete "${project.name}"?`}
-        message={`This will permanently delete "${project.name}" and all of its tasks. This cannot be undone.`}
-        confirmLabel="Delete"
-        isConfirming={mutation.isPending}
-        onConfirm={() => mutation.mutate()}
-        onCancel={onClose}
-      />
-      {errorMessage && (
-        <p className="project-sidebar__status project-sidebar__status--error" role="alert">
-          {errorMessage}
-        </p>
-      )}
-    </>
+    <ConfirmDialog
+      title={`Delete "${project.name}"?`}
+      message={`This will permanently delete "${project.name}" and all of its tasks. This cannot be undone.`}
+      confirmLabel="Delete"
+      isConfirming={mutation.isPending}
+      errorMessage={errorMessage}
+      onConfirm={() => mutation.mutate()}
+      onCancel={onClose}
+    />
   );
 }

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { listProjects } from '../api/client';
 import { ProjectSidebar, type SelectedProjectId } from './ProjectSidebar';
 
 interface LayoutProps {
@@ -15,6 +17,28 @@ interface LayoutProps {
  */
 export function Layout({ children }: LayoutProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<SelectedProjectId>(null);
+
+  // Shares the ['projects'] cache with ProjectSidebar/ContentArea, so this adds no extra request.
+  const { data: projects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: listProjects,
+  });
+
+  // Keep a valid project selected once projects load: default to the seeded Inbox (isDefault) so
+  // a fresh load lands on a populated view instead of a blank pane, and recover the same way if
+  // the selected project stops existing (e.g. it was just deleted). Never overrides a still-valid
+  // user selection.
+  useEffect(() => {
+    if (!projects || projects.length === 0) {
+      return;
+    }
+    const selectionValid =
+      selectedProjectId !== null && projects.some((project) => project.id === selectedProjectId);
+    if (!selectionValid) {
+      const defaultProject = projects.find((project) => project.isDefault) ?? projects[0];
+      setSelectedProjectId(defaultProject.id);
+    }
+  }, [projects, selectedProjectId]);
 
   return (
     <div className="layout">

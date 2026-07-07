@@ -69,8 +69,12 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
 
   const moveMutation = useMutation({
     mutationFn: (targetProjectId: number) => moveTask(task.id, { targetProjectId }),
-    onSuccess: () => {
+    onSuccess: (_movedTask, targetProjectId) => {
       invalidateTasks();
+      // Also refresh the destination project's list. Without this, if the user has already
+      // viewed that project, its cached list still omits the moved task until something else
+      // invalidates it -- so switching to it would briefly show the task missing.
+      queryClient.invalidateQueries({ queryKey: ['tasks', targetProjectId] });
     },
     onError: (error: unknown) => {
       onError(extractErrorMessage(error, 'Failed to move task.'));
@@ -260,10 +264,19 @@ function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
       </label>
       {inlineErrorMessage && <p className="edit-task-form__error">{inlineErrorMessage}</p>}
       <div className="edit-task-form__actions">
-        <button type="button" onClick={onDone} disabled={mutation.isPending}>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          onClick={onDone}
+          disabled={mutation.isPending}
+        >
           Cancel
         </button>
-        <button type="submit" disabled={mutation.isPending || title.trim().length === 0}>
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={mutation.isPending || title.trim().length === 0}
+        >
           {mutation.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>

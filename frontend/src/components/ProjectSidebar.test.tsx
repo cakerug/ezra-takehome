@@ -241,4 +241,35 @@ describe('ProjectSidebar', () => {
       expect(mockDeleteProject).toHaveBeenCalledWith(2);
     });
   });
+
+  it('surfaces a failed delete inside the dialog (not behind the overlay) and keeps it open', async () => {
+    const user = userEvent.setup();
+    mockListProjects.mockResolvedValue([inbox, work]);
+    mockDeleteProject.mockRejectedValueOnce(
+      new ApiError(500, {
+        title: 'Internal Server Error',
+        status: 500,
+        detail: 'An unexpected error occurred. Please try again later.',
+      }),
+    );
+
+    renderSidebar();
+
+    await screen.findByText('Work');
+
+    await user.click(screen.getByRole('button', { name: 'Delete Work' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(mockDeleteProject).toHaveBeenCalledWith(2);
+    });
+
+    // The failure message must render INSIDE the still-open dialog (above the overlay), so it is
+    // not a silent failure hidden behind the modal scrim.
+    const dialogAfter = await screen.findByRole('alertdialog');
+    expect(
+      within(dialogAfter).getByText('An unexpected error occurred. Please try again later.'),
+    ).toBeInTheDocument();
+  });
 });
