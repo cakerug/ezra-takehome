@@ -1,3 +1,10 @@
+/*
+ * Uses BEM (block__element--modifier) standards: https://getbem.com/
+ * This is simple for a small scale but enforced just by following standards (though maybe with AI that's more scalable).
+ * With AI it might make more sense to have styling more centralized in general so you can reason about the holistic style in one place + have the safety of more auto-generated tests.
+ * At scale, you might consider changing this to CSS modules or styled components.
+ */
+
 :root {
   --text: #1f2328;
   --text-muted: #6b7280;
@@ -8,7 +15,7 @@
      and primary buttons. */
   --accent: #2b5cd9;
   --accent-hover: #234ec0;
-  --danger: var(--danger);
+  --danger: #8f2f2f;
   --danger-hover: #a52626;
 
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
