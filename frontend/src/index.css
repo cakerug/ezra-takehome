@@ -1,7 +1,11 @@
 /*
  * Uses BEM (block__element--modifier) standards: https://getbem.com/
- * This is simple for a small scale but enforced just by following standards (though maybe with AI that's more scalable).
- * With AI it might make more sense to have styling more centralized in general so you can reason about the holistic style in one place + have the safety of more auto-generated tests.
+ * This is simple for a small scale but enforced just by following standards (though maybe with AI
+ * that's more scalable).
+ * With AI it might make more sense to have styling more centralized in general so you can
+ * reason about the holistic style in one place.
+ * In other words - because of AI we are optimizing for ease-of-review. Tailwind optimizes for
+ * writing and editing more than reading IMO.
  * At scale, you might consider changing this to CSS modules or styled components.
  */
 
