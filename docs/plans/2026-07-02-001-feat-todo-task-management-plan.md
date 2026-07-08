@@ -128,6 +128,10 @@ Every `TASK` belongs to exactly one `PROJECT`; the `PROJECT` flagged `isDefault`
 - Due dates, scheduling, recurrence, and reminders — dropped entirely, not deferred as a stretch goal.
 - Authentication and multi-user support — single unauthenticated user only.
 - Nested sub-projects or sub-tasks — projects and tasks stay flat.
+- Optimistic updates, concurrency tokens, and ETags — the pessimistic refetch model is coherent for single-user and documented as such.
+- Explicit transactions around reorder/move — each mutation is already one `SaveChangesAsync`, i.e. one implicit transaction.
+- Environment-gating Swagger, a menu-button replacement for the move dropdown, and a full focus trap in `ConfirmDialog` (a minimal Escape/autofocus version covers the realistic interaction) — each a deliberate choice made once and documented rather than revisited.
+- Per-field error objects / `aria-describedby`, client-side `maxLength` attributes (their absence is what lets server-validation surfacing demo), hover-reveal row actions, dark mode, mobile breakpoints, client-generated correlation IDs, and disabling drag-and-drop while a reorder is pending — all judged as diminishing returns beyond this MVP's scope.
 
 ### Dependencies / Assumptions
 
@@ -153,6 +157,9 @@ No external or repo research was dispatched: the repository is greenfield (only 
 - **Frontend server state uses React Query (`@tanstack/react-query`)** instead of hand-rolled fetch/useState — removes loading/error/caching boilerplate without introducing a heavier state library the app's size doesn't need.
 - **Drag-and-drop reordering uses `@dnd-kit/core`.** Well-maintained, purpose-built for single-list sortable reordering with reasonable accessibility defaults out of the box — appropriate for this MVP's scope without pulling in a heavier drag-and-drop framework.
 - **Mutations use pessimistic UI updates, not optimistic-with-rollback.** The task/project list doesn't reflect a create, edit, delete, move, or reorder until the mutation succeeds; any failure (validation or otherwise) surfaces via a toast/banner showing the error. Simpler to implement correctly than optimistic updates with rollback, at the cost of a small perceived-latency hit that's an acceptable trade for an MVP.
+- **Concurrent write races map to 409, not 500.** A `DbUpdateException` caught in `ExceptionHandlingMiddleware` (rather than pre-checking existence a second time before every mutation) covers move/reorder/delete races in one place — cheaper than closing every check-then-act window individually, and gives the client an actionable status code instead of an opaque server error.
+- **Correlation-ID logging requires `IncludeScopes: true` on the console logger.** `ILogger.BeginScope` alone doesn't surface the scope in console output — the formatter has to be told to include it, or the correlation ID attaches to every log call but appears in none of them. Easy to miss since the middleware and its header-echo test both pass without it.
+- **Shared `.btn--primary` / `.btn--secondary` CSS classes, applied at every button call site** (including the dialog's buttons) instead of relying on browser-default button styling for some actions and custom styling for others — one visual language for all interactive controls rather than a partially-applied one.
 
 ### Assumptions
 
