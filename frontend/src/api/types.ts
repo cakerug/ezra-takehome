@@ -1,6 +1,12 @@
 /**
  * TypeScript mirrors of the backend DTOs in `backend/TodoApi/Dtos/ProjectDtos.cs` and
  * `backend/TodoApi/Dtos/TaskDtos.cs`. Field names and optionality match the C# types exactly.
+ *
+ * These are maintained by hand, so they can drift from the C# DTOs. A tool like Zod would only
+ * dedupe types within TS; to actually share the source of truth across languages, the equivalent
+ * here is generating one side from the other via OpenAPI: Swashbuckle (already common in
+ * ASP.NET Core) emits an OpenAPI spec from the C# DTOs, and `openapi-typescript` turns that spec
+ * into these TS types automatically, so they can't drift.
  */
 
 // ---- Projects ----

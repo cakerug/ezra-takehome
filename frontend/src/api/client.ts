@@ -1,3 +1,10 @@
+/**
+ * "Client" = the HTTP client for this API (fetch wrapper + one function per endpoint), a common
+ * naming convention (cf. `apiClient.ts`, generated SDKs). All endpoints live in this single file
+ * because this project only has ~10; if it grows, split by resource (`projects.ts`, `tasks.ts`)
+ * and keep `request()`/`ApiError` here.
+ */
+
 import type {
   CreateProjectRequest,
   CreateTaskRequest,
