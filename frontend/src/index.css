@@ -5,8 +5,8 @@
  * With AI it might make more sense to have styling more centralized in general so you can
  * reason about the holistic style in one place.
  * In other words - because of AI we are optimizing for ease-of-review. Tailwind optimizes for
- * writing and editing more than reading IMO.
- * At scale, you might consider changing this to CSS modules or styled components.
+ * writing and editing more than reading when evaluating a holistic style.
+ * At scale, you still might consider changing this to CSS modules or styled components.
  */
 
 :root {
