@@ -74,6 +74,9 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
       // Also refresh the destination project's list. Without this, if the user has already
       // viewed that project, its cached list still omits the moved task until something else
       // invalidates it -- so switching to it would briefly show the task missing.
+      // Note: having to remember to do two invalidations here wouldn't really be solved by
+      // Apollo/GraphQL either -- it has the same issue with collection membership. It would
+      // only help if there were per-task cache entries elsewhere referencing this task.
       queryClient.invalidateQueries({ queryKey: ['tasks', targetProjectId] });
     },
     onError: (error: unknown) => {
