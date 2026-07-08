@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProjectResponse, TaskResponse } from '../api/types';
 import { ApiError } from '../api/client';
-import { TaskList, computeReorderedIds } from './TaskList';
+import { TaskList } from './TaskList';
+import { computeReorderedIds } from './taskOrdering';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
