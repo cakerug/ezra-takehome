@@ -51,9 +51,8 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Shared button styles so form and dialog actions share one visual language instead of falling
-   back to native OS button chrome. Icon/text-only affordances (sidebar/task row actions, the drag
-   handle, the toast dismiss) keep their own minimal styling and deliberately don't use these. */
+/* Icon/text-only affordances (sidebar/task row actions, the drag handle, the toast dismiss)
+   deliberately don't use .btn -- they keep their own minimal styling. */
 .btn {
   font: inherit;
   padding: 8px 14px;
