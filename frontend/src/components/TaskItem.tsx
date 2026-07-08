@@ -7,12 +7,12 @@ import {
   ApiError,
   completeTask,
   deleteTask,
+  extractErrorMessage,
   moveTask,
   uncompleteTask,
   updateTask,
 } from '../api/client';
 import type { ProjectResponse, TaskResponse } from '../api/types';
-import { extractErrorMessage } from '../api/errors';
 import { ConfirmDialog } from './ConfirmDialog';
 
 interface TaskItemProps {

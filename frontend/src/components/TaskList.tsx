@@ -14,8 +14,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { listProjects, listTasks, reorderTasks } from '../api/client';
-import { extractErrorMessage } from '../api/errors';
+import { extractErrorMessage, listProjects, listTasks, reorderTasks } from '../api/client';
 import { NewTaskForm } from './NewTaskForm';
 import { TaskItem } from './TaskItem';
 import { Toast } from './Toast';

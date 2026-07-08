@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createProject } from '../api/client';
-import { extractErrorMessage } from '../api/errors';
+import { createProject, extractErrorMessage } from '../api/client';
 
 /**
  * "New project" form (name + description). Posts via a React Query mutation; on success,

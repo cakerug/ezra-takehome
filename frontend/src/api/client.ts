@@ -36,6 +36,19 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Shared error-message extraction for ApiErrors.
+ */
+export function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    if (error.problem?.errors) {
+      return Object.values(error.problem.errors).flat().join(' ');
+    }
+    return error.message;
+  }
+  return fallback;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
