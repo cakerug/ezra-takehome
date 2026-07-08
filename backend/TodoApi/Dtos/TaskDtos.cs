@@ -28,7 +28,7 @@ public class UpdateTaskRequest
 /// </summary>
 public class MoveTaskRequest
 {
-    public int TargetProjectId { get; set; }
+    public required int TargetProjectId { get; set; }
 }
 
 /// <summary>
@@ -37,7 +37,7 @@ public class MoveTaskRequest
 /// </summary>
 public class ReorderTasksRequest
 {
-    public List<int> OrderedTaskIds { get; set; } = new();
+    public required List<int> OrderedTaskIds { get; set; } = new();
 }
 
 /// <summary>
@@ -45,19 +45,19 @@ public class ReorderTasksRequest
 /// </summary>
 public class TaskResponse
 {
-    public int Id { get; set; }
+    public required int Id { get; set; }
 
     public required string Title { get; set; }
 
     public string? Description { get; set; }
 
-    public int ProjectId { get; set; }
+    public required int ProjectId { get; set; }
 
-    public int Order { get; set; }
+    public required int Order { get; set; }
 
-    public bool IsComplete { get; set; }
+    public required bool IsComplete { get; set; }
 
     public DateTime? CompletedAt { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public required DateTime CreatedAt { get; set; }
 }

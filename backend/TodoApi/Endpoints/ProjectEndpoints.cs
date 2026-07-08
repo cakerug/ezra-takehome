@@ -20,25 +20,25 @@ public static class ProjectEndpoints
         {
             var projects = await ProjectOperations.ListAsync(db);
             return Results.Ok(projects);
-        });
+        }).Produces<List<ProjectResponse>>();
 
         group.MapPost("", async (AppDbContext db, CreateProjectRequest request) =>
         {
             var created = await ProjectOperations.CreateAsync(db, request);
             return Results.Created($"/api/projects/{created.Id}", created);
-        });
+        }).Produces<ProjectResponse>(StatusCodes.Status201Created);
 
         group.MapPut("/{id:int}", async (AppDbContext db, int id, UpdateProjectRequest request) =>
         {
             var updated = await ProjectOperations.UpdateAsync(db, id, request);
             return Results.Ok(updated);
-        });
+        }).Produces<ProjectResponse>();
 
         group.MapDelete("/{id:int}", async (AppDbContext db, int id) =>
         {
             await ProjectOperations.DeleteAsync(db, id);
             return Results.NoContent();
-        });
+        }).Produces(StatusCodes.Status204NoContent);
 
         return app;
     }

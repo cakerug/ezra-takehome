@@ -20,7 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c => c.SupportNonNullableReferenceTypes());
 builder.Services.AddHealthChecks();
 
 // The frontend runs on Vite's default dev port. No credentials/cookies are involved (no auth
