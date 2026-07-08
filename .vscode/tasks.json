@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend",
+      "type": "shell",
+      "command": "dotnet run --urls http://localhost:5265",
+      "options": {
+        "cwd": "${workspaceFolder}/backend/TodoApi"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "run"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend-dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "run"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run-all",
+      "dependsOn": ["backend", "frontend-dev"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "backend-tests",
+      "type": "shell",
+      "command": "dotnet test",
+      "options": {
+        "cwd": "${workspaceFolder}/backend/TodoApi.Tests"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend-tests",
+      "type": "shell",
+      "command": "npx vitest",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "test"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
