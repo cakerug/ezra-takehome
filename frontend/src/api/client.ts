@@ -3,20 +3,47 @@
  * split by resource (`projects.ts`, `tasks.ts`) and keep `request()`/`ApiError` here.
  */
 
+import { z } from 'zod';
 import type {
   CreateProjectRequest,
   CreateTaskRequest,
   MoveTaskRequest,
-  ProblemDetails,
   ProjectResponse,
   ReorderTasksRequest,
   TaskResponse,
   UpdateProjectRequest,
   UpdateTaskRequest,
-} from './types';
+} from './generated-schemas';
+import { schemas } from './generated-schemas';
+
+const ProjectResponseSchema = schemas.ProjectResponse;
+const TaskResponseSchema = schemas.TaskResponse;
+const ProjectListResponseSchema = z.array(ProjectResponseSchema);
+const TaskListResponseSchema = z.array(TaskResponseSchema);
 
 const BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:5265';
+
+/**
+ * RFC 7807 ProblemDetails, see ExceptionHandlingMiddleware.cs.
+ *
+ * Hand-written, not generated: error bodies are written directly to the response stream by
+ * ExceptionHandlingMiddleware after an exception is thrown, not returned from an endpoint's
+ * declared return type. Swashbuckle builds the OpenAPI spec by inspecting endpoint return
+ * types/ProducesResponseType attributes, so it never sees this path and omits ProblemDetails
+ * from generated-schemas.ts entirely. Fixable by adding `.Produces<ProblemDetails>(status)` to
+ * every endpoint chain for every status code it can throw, but that's per-endpoint boilerplate
+ * for one shared shape -- not worth it here.
+ */
+interface ProblemDetails {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  instance?: string;
+  /** Present on 400 validation errors (ValidationProblemDetails); maps field name -> messages. */
+  errors?: { [field: string]: string[] };
+}
 
 /**
  * Error thrown by `request()` for any non-2xx response. Wraps the parsed `ProblemDetails` body
@@ -49,7 +76,11 @@ export function extractErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  schema: z.ZodType<T> | undefined,
+  init?: RequestInit,
+): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -73,7 +104,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const json: unknown = await response.json();
+  return schema ? schema.parse(json) : (json as T);
 }
 
 function toJsonBody(body: unknown): RequestInit {
@@ -83,11 +115,11 @@ function toJsonBody(body: unknown): RequestInit {
 // ---- Projects ----
 
 export function listProjects(): Promise<ProjectResponse[]> {
-  return request<ProjectResponse[]>('/api/projects');
+  return request('/api/projects', ProjectListResponseSchema);
 }
 
 export function createProject(data: CreateProjectRequest): Promise<ProjectResponse> {
-  return request<ProjectResponse>('/api/projects', {
+  return request('/api/projects', ProjectResponseSchema, {
     method: 'POST',
     ...toJsonBody(data),
   });
@@ -97,27 +129,27 @@ export function updateProject(
   id: number,
   data: UpdateProjectRequest,
 ): Promise<ProjectResponse> {
-  return request<ProjectResponse>(`/api/projects/${id}`, {
+  return request(`/api/projects/${id}`, ProjectResponseSchema, {
     method: 'PUT',
     ...toJsonBody(data),
   });
 }
 
 export function deleteProject(id: number): Promise<void> {
-  return request<void>(`/api/projects/${id}`, { method: 'DELETE' });
+  return request(`/api/projects/${id}`, undefined, { method: 'DELETE' });
 }
 
 // ---- Tasks ----
 
 export function listTasks(projectId: number): Promise<TaskResponse[]> {
-  return request<TaskResponse[]>(`/api/projects/${projectId}/tasks`);
+  return request(`/api/projects/${projectId}/tasks`, TaskListResponseSchema);
 }
 
 export function createTask(
   projectId: number,
   data: CreateTaskRequest,
 ): Promise<TaskResponse> {
-  return request<TaskResponse>(`/api/projects/${projectId}/tasks`, {
+  return request(`/api/projects/${projectId}/tasks`, TaskResponseSchema, {
     method: 'POST',
     ...toJsonBody(data),
   });
@@ -127,33 +159,33 @@ export function reorderTasks(
   projectId: number,
   data: ReorderTasksRequest,
 ): Promise<TaskResponse[]> {
-  return request<TaskResponse[]>(`/api/projects/${projectId}/tasks/reorder`, {
+  return request(`/api/projects/${projectId}/tasks/reorder`, TaskListResponseSchema, {
     method: 'PUT',
     ...toJsonBody(data),
   });
 }
 
 export function updateTask(id: number, data: UpdateTaskRequest): Promise<TaskResponse> {
-  return request<TaskResponse>(`/api/tasks/${id}`, {
+  return request(`/api/tasks/${id}`, TaskResponseSchema, {
     method: 'PUT',
     ...toJsonBody(data),
   });
 }
 
 export function deleteTask(id: number): Promise<void> {
-  return request<void>(`/api/tasks/${id}`, { method: 'DELETE' });
+  return request(`/api/tasks/${id}`, undefined, { method: 'DELETE' });
 }
 
 export function completeTask(id: number): Promise<TaskResponse> {
-  return request<TaskResponse>(`/api/tasks/${id}/complete`, { method: 'PUT' });
+  return request(`/api/tasks/${id}/complete`, TaskResponseSchema, { method: 'PUT' });
 }
 
 export function uncompleteTask(id: number): Promise<TaskResponse> {
-  return request<TaskResponse>(`/api/tasks/${id}/uncomplete`, { method: 'PUT' });
+  return request(`/api/tasks/${id}/uncomplete`, TaskResponseSchema, { method: 'PUT' });
 }
 
 export function moveTask(id: number, data: MoveTaskRequest): Promise<TaskResponse> {
-  return request<TaskResponse>(`/api/tasks/${id}/move`, {
+  return request(`/api/tasks/${id}/move`, TaskResponseSchema, {
     method: 'PUT',
     ...toJsonBody(data),
   });

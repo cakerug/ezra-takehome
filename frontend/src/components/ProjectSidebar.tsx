@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteProject, extractErrorMessage, listProjects, updateProject } from '../api/client';
-import type { ProjectResponse } from '../api/types';
+import type { ProjectResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewProjectForm } from './NewProjectForm';
 

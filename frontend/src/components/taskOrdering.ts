@@ -1,5 +1,5 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import type { TaskResponse } from '../api/types';
+import type { TaskResponse } from '../api/generated-schemas';
 
 /** Incomplete tasks first (each group by `order`), completed tasks sorted to the bottom -- per
  * the plan, completed tasks are shown inline rather than in a separate view. */

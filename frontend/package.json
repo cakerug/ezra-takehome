@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "gen:api": "openapi-typescript http://localhost:5265/swagger/v1/swagger.json -o src/api/schema.ts"
+    "gen:api": "openapi-zod-client http://localhost:5265/swagger/v1/swagger.json -o src/api/generated-schemas.ts -t codegen/schemas-only.hbs --export-schemas"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -19,6 +19,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
+  "//": "ajv is pinned directly to ajv@8 so npm dedupes to it instead of eslint's own ajv@6 -- openapi-zod-client's swagger-parser needs ajv@8, eslint needs ajv@6, and there's no version of either that resolves the conflict on its own.",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -28,15 +29,17 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "ajv": "^8.20.0",
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
-    "openapi-typescript": "^7.13.0",
+    "openapi-zod-client": "^1.18.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.63.0",
     "vite": "^8.1.1",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "zod": "^4.4.3"
   }
 }
