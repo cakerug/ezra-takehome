@@ -6,7 +6,7 @@
  * We could have written these types by hand instead of generating them which I would say is fine for
  * an application with a single developer, but the task instructions call out "communication between frontend and backend"
  * as an evaluation criterion, so I added this codegen which enables compile-time and runtime validation.
- * The cost is additional complexity (having to understand zod) and there is some added additional latency
+ * The cost is additional complexity (having to understand zod and hbs syntax) and there is some added additional latency
  * (though negligible) to do the runtime validation.
  *
  * Note that `npm run gen:api` has to be enforced in CI/CD pipelines for this to be safe which I did not do.
