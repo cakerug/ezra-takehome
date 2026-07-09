@@ -1,12 +1,11 @@
 /*
  * Uses BEM (block__element--modifier) standards: https://getbem.com/
- * This is simple for a small scale but enforced just by following standards (though maybe with AI
- * that's more scalable).
- * With AI it might make more sense to have styling more centralized in general so you can
- * reason about the holistic style in one place.
- * In other words - because of AI we are optimizing for ease-of-review. Tailwind optimizes for
- * writing and editing more than reading when evaluating a holistic style.
- * At scale, you still might consider changing this to CSS modules or styled components.
+ * This is simple for a small scale but enforced just by following naming standards.
+ * For an app built by just one person, BEM is likely fine. You might consider changing this to
+ * CSS modules to avoid conflicts and to have more obvious collocation with the thing it's styling.
+ * The trade-offs are it's just a bit more work to generate the typescript types for the styles and
+ * it is nice to have all the styles in one location to have a holistic view of the app styles but
+ * I think I personally prefer collocation for editing and understandability.
  */
 
 :root {
