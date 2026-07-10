@@ -17,9 +17,8 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
       ? undefined
       : projects?.find((project) => project.id === selectedProjectId);
 
-  // No resolved selection yet: either the initial load before App auto-selects the default
-  // project, or the brief gap after deleting the selected project before re-selection lands.
-  // Show a neutral placeholder rather than a blank pane.
+  // No resolved selection yet -- the initial load before the projects query resolves and App
+  // can pick a default. Show a neutral placeholder rather than a blank pane.
   if (!selectedProject) {
     return <p className="content__empty">Loading…</p>;
   }
@@ -51,35 +50,25 @@ function App() {
     queryFn: listProjects,
   });
 
-  // Keep a valid project selected once projects load: default to the seeded Inbox (isDefault) so
-  // a fresh load lands on a populated view instead of a blank pane, and recover the same way if
-  // the selected project stops existing (e.g. it was just deleted). Never overrides a still-valid
-  // user selection. Adjusted during render (rather than in an effect) per
-  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes,
-  // so the corrected selection is ready in this render instead of causing an extra one.
-  const [projectsForSelection, setProjectsForSelection] = useState(projects);
-  if (projects !== projectsForSelection) {
-    setProjectsForSelection(projects);
-    if (projects && projects.length > 0) {
-      const selectionValid =
-        selectedProjectId !== null && projects.some((project) => project.id === selectedProjectId);
-      if (!selectionValid) {
-        const defaultProject = projects.find((project) => project.isDefault) ?? projects[0];
-        setSelectedProjectId(defaultProject.id);
-      }
-    }
-  }
+  // Fall back to the seeded default (Inbox) whenever there's no selection yet or the selected
+  // project no longer exists (e.g. it was just deleted), so the view is never blank. Never
+  // overrides a still-valid user selection.
+  const selectionValid =
+    selectedProjectId !== null && projects?.some((project) => project.id === selectedProjectId);
+  const effectiveProjectId = selectionValid
+    ? selectedProjectId
+    : ((projects?.find((project) => project.isDefault) ?? projects?.[0])?.id ?? null);
 
   return (
     <div className="layout">
       <aside className="layout__sidebar">
         <ProjectSidebar
-          selectedProjectId={selectedProjectId}
+          selectedProjectId={effectiveProjectId}
           onSelectProject={setSelectedProjectId}
         />
       </aside>
       <main className="layout__content">
-        <ContentArea selectedProjectId={selectedProjectId} />
+        <ContentArea selectedProjectId={effectiveProjectId} />
       </main>
     </div>
   );
