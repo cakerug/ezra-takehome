@@ -64,6 +64,25 @@ export class ApiError extends Error {
 }
 
 /**
+ * Thrown when the server responded successfully (2xx) but the JSON body didn't match the Zod
+ * schema we generated from the backend's OpenAPI spec -- i.e. a client-side validation failure,
+ * not a server error. Distinct from `ApiError` so callers (and anyone reading the surfaced
+ * message) can tell "the API rejected our request" apart from "we rejected the API's response."
+ * Keeps the underlying `ZodError` on `.zodError` for full detail.
+ */
+export class ResponseValidationError extends Error {
+  readonly path: string;
+  readonly zodError: z.ZodError;
+
+  constructor(path: string, zodError: z.ZodError) {
+    super(`Response from ${path} failed client-side validation (Zod): ${zodError.message}`);
+    this.name = 'ResponseValidationError';
+    this.path = path;
+    this.zodError = zodError;
+  }
+}
+
+/**
  * Shared error-message extraction for ApiErrors.
  */
 export function extractErrorMessage(error: unknown, fallback: string): string {
@@ -105,7 +124,17 @@ async function request<T>(
   }
 
   const json: unknown = await response.json();
-  return schema ? schema.parse(json) : (json as T);
+  if (!schema) {
+    return json as T;
+  }
+  const result = schema.safeParse(json);
+  if (!result.success) {
+    // Log the full ZodError and the raw body for debugging: the network tab shows the response
+    // JSON but not which fields Zod rejected, and the thrown message is only a trimmed summary.
+    console.error(`Response validation failed for ${path}`, result.error, json);
+    throw new ResponseValidationError(path, result.error);
+  }
+  return result.data;
 }
 
 function toJsonBody(body: unknown): RequestInit {
