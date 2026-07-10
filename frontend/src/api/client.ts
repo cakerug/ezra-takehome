@@ -131,7 +131,11 @@ async function request<T>(
   if (!result.success) {
     // Log the full ZodError and the raw body for debugging: the network tab shows the response
     // JSON but not which fields Zod rejected, and the thrown message is only a trimmed summary.
-    console.error(`Response validation failed for ${path}`, result.error, json);
+    // Dev-only: import.meta.env.DEV is statically replaced by Vite, so this branch (and the
+    // console.error call) is dead-code-eliminated from production builds entirely.
+    if (import.meta.env.DEV) {
+      console.error(`Response validation failed for ${path}`, result.error, json);
+    }
     throw new ResponseValidationError(path, result.error);
   }
   return result.data;

@@ -39,12 +39,7 @@ export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const {
-    data: tasks,
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
+  const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: () => listTasks(projectId),
   });
@@ -90,14 +85,6 @@ export function TaskList({ projectId }: TaskListProps) {
 
   if (isLoading) {
     return <p className="task-list__status">Loading tasks…</p>;
-  }
-
-  if (isError) {
-    return (
-      <p className="task-list__status task-list__status--error">
-        Failed to load tasks{error instanceof Error ? `: ${error.message}` : ''}
-      </p>
-    );
   }
 
   const sorted = tasks ? sortTasks(tasks) : [];

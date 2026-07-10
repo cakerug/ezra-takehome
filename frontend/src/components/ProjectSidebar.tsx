@@ -17,12 +17,7 @@ interface ProjectSidebarProps {
 }
 
 export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
-  const {
-    data: projects,
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
+  const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
@@ -35,11 +30,6 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
       <h2 className="project-sidebar__heading">Projects</h2>
 
       {isLoading && <p className="project-sidebar__status">Loading projects…</p>}
-      {isError && (
-        <p className="project-sidebar__status project-sidebar__status--error">
-          Failed to load projects{error instanceof Error ? `: ${error.message}` : ''}
-        </p>
-      )}
 
       {projects && (
         <ul className="project-sidebar__list">

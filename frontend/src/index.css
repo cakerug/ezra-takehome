@@ -92,6 +92,36 @@ button:disabled {
   border-color: var(--danger-hover);
 }
 
+.error-boundary {
+  max-width: 480px;
+  margin: 80px auto;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.error-boundary__title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.error-boundary__message {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+
+.error-boundary__detail {
+  margin-top: 16px;
+  text-align: left;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.error-boundary__detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .layout {
   display: flex;
   min-height: 100svh;
