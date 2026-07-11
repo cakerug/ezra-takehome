@@ -397,11 +397,15 @@ button:disabled {
 }
 
 .task-item--dragging {
-  /* Lift the dragged row above its siblings with elevation instead of just fading it -- without a
-     stacking context and shadow, it paints beneath later rows and reads as broken. */
-  position: relative;
-  z-index: 1;
-  opacity: 0.9;
+  /* The floating .task-item--overlay clone (see below) is what follows the cursor -- this is just
+     the vacated slot left behind in the list, faded so it doesn't compete with the overlay. */
+  opacity: 0.4;
+}
+
+.task-item--overlay {
+  /* Rendered by DragOverlay, positioned by dnd-kit to track the pointer directly. Elevation here
+     (vs. just the fade above) makes it read as "picked up" rather than part of the static list. */
+  cursor: grabbing;
   box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
 }
 

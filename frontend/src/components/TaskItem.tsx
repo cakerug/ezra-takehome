@@ -9,6 +9,25 @@ import { showErrorToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
 
+/** Floating visual clone rendered inside `TaskList`'s `DragOverlay` while a task is being dragged
+ * -- it tracks the pointer directly instead of the reorder-relative transform `useSortable`
+ * applies to the in-place row, so the dragged task visually follows the cursor and only snaps to
+ * its new slot on drop. Presentational only: no hooks, no mutations, no interactive controls. */
+export function TaskItemOverlay({ task }: { task: TaskResponse }) {
+  return (
+    <li className="task-item task-item--overlay">
+      <span className="task-item__drag-handle" aria-hidden="true">
+        ⠿
+      </span>
+      <input type="checkbox" className="task-item__checkbox" checked={task.isComplete} readOnly />
+      <div className="task-item__body">
+        <p className="task-item__title">{task.title}</p>
+        {task.description && <p className="task-item__description">{task.description}</p>}
+      </div>
+    </li>
+  );
+}
+
 interface TaskItemProps {
   task: TaskResponse;
   /** All projects other than the task's own, for the "move to project" dropdown. */
@@ -36,6 +55,10 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
     disabled: !isDraggable,
   });
 
+  // While dragging, the in-place row becomes a placeholder for the slot being vacated -- the
+  // floating `TaskItemOverlay` (rendered by `TaskList`'s `DragOverlay`) is what follows the
+  // cursor, so this row only needs `useSortable`'s reorder-relative transform to animate the
+  // other rows sliding out of the way, not to track the pointer itself.
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,

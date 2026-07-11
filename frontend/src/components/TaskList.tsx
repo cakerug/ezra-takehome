@@ -1,13 +1,15 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -17,7 +19,7 @@ import { listProjects, listTasks, reorderTasks } from '../api/client';
 import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import { NewTaskForm } from './NewTaskForm';
-import { TaskItem } from './TaskItem';
+import { TaskItem, TaskItemOverlay } from './TaskItem';
 import { sortTasks, computeReorderedIds } from './taskOrdering';
 
 interface TaskListProps {
@@ -38,6 +40,7 @@ interface TaskListProps {
  */
 export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
+  const [activeId, setActiveId] = useState<number | null>(null);
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
@@ -71,8 +74,13 @@ export function TaskList({ projectId }: TaskListProps) {
     },
   });
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(Number(event.active.id));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    setActiveId(null);
     if (!tasks || !over) {
       return;
     }
@@ -89,6 +97,7 @@ export function TaskList({ projectId }: TaskListProps) {
 
   const sorted = tasks ? sortTasks(tasks) : [];
   const incompleteIds = sorted.filter((task) => !task.isComplete).map((task) => task.id);
+  const activeTask = activeId === null ? undefined : sorted.find((task) => task.id === activeId);
 
   return (
     <div className="task-list">
@@ -98,7 +107,9 @@ export function TaskList({ projectId }: TaskListProps) {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveId(null)}
         >
           <SortableContext items={incompleteIds} strategy={verticalListSortingStrategy}>
             <ul className="task-list__items">
@@ -112,6 +123,7 @@ export function TaskList({ projectId }: TaskListProps) {
               ))}
             </ul>
           </SortableContext>
+          <DragOverlay>{activeTask && <TaskItemOverlay task={activeTask} />}</DragOverlay>
         </DndContext>
       )}
 
