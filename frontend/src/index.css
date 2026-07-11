@@ -134,6 +134,33 @@ button:disabled {
   background: var(--bg-muted);
 }
 
+.layout--sidebar-collapsed .layout__sidebar {
+  width: 44px;
+  background: transparent;
+  border-right: none;
+}
+
+/* Toggle sits inside the sidebar; in the expanded layout it's an inline button before the list. */
+.layout__sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.layout__sidebar-toggle:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
 .layout__content {
   flex: 1;
   padding: 24px;
