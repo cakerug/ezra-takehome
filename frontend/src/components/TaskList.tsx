@@ -56,7 +56,11 @@ export function TaskList({ projectId }: TaskListProps) {
   const otherProjects = (projects ?? []).filter((project) => project.id !== projectId);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    // The whole row is now the drag surface (not just a dedicated handle), and it contains other
+    // clickable controls (checkbox, body button, "…" menu). A small movement threshold lets a
+    // plain click on those still register normally -- only a deliberate drag (pointer moves ≥8px
+    // before release) is treated as a reorder.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 

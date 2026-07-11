@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { completeTask, deleteTask, moveTask, uncompleteTask, updateTask } from '../api/client';
-import { extractFieldErrors, toToastMessage } from '../api/errors';
+import { completeTask, deleteTask, moveTask, uncompleteTask } from '../api/client';
+import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
+import { ActionMenu, type ActionMenuEntry } from './ActionMenu';
 import { ConfirmDialog } from './ConfirmDialog';
+import { TaskDetailDialog } from './TaskDetailDialog';
 
 /** Floating visual clone rendered inside `TaskList`'s `DragOverlay` while a task is being dragged
  * -- it tracks the pointer directly instead of the reorder-relative transform `useSortable`
@@ -32,28 +33,52 @@ interface TaskItemProps {
   task: TaskResponse;
   /** All projects other than the task's own, for the "move to project" dropdown. */
   otherProjects: ProjectResponse[];
-  /** Only incomplete tasks participate in drag-to-reorder; completed ones render without a
-   * drag handle since they're pinned to the bottom regardless of order. */
+  /** Only incomplete tasks participate in drag-to-reorder; completed ones render without drag
+   * behavior since they're pinned to the bottom regardless of order. */
   isDraggable: boolean;
 }
 
 /**
- * A single task row: drag handle (via `useSortable`), complete/uncomplete checkbox, inline
- * edit form (mirrors `ProjectSidebar`'s `EditProjectForm` pattern), a "move to project" select,
- * and a delete action backed by the shared `ConfirmDialog`. Every mutation here is pessimistic:
- * on success it invalidates the project's task list so `TaskList` refetches from the server; on
- * failure the list is left exactly as it was. Failures surface in the app-level toast (via
- * `showErrorToast`); the delete dialog additionally stays open so the user can retry in place.
+ * A single task row: the whole row is the *pointer* drag surface (a small movement threshold in
+ * `TaskList`'s `PointerSensor` lets plain clicks on nested controls still register normally --
+ * only a deliberate drag is treated as a reorder), while *keyboard* dragging stays scoped to the
+ * small handle button (see the note above `useSortable` in this file for why). Also renders a
+ * complete/uncomplete checkbox, a clickable body that opens the task's detail view
+ * (`TaskDetailDialog`, where title/description are edited), and an overflow "…" menu holding
+ * "Move to <project>" + Delete (delete backed by the shared `ConfirmDialog`). The drag handle and
+ * "…" menu stay hidden until the row is hovered/focused (see `index.css`) to keep the list
+ * uncluttered. Every mutation here is pessimistic: on success it invalidates the project's task
+ * list so `TaskList` refetches from the server; on failure the list is left exactly as it was.
+ * Failures surface in the app-level toast (via `showErrorToast`); the delete dialog additionally
+ * stays open so the user can retry in place.
  */
 export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: task.id,
     disabled: !isDraggable,
   });
+  // Pointer dragging is wired to the whole row (`listeners.onPointerDown` below) so the row is
+  // grabbable from anywhere, not just the handle icon. Keyboard dragging stays scoped to the small
+  // handle button via `setActivatorNodeRef` + its own `onKeyDown` -- dnd-kit's keyboard activator
+  // only guards against firing when its "activator node" doesn't match the actual keydown target,
+  // and that guard is skipped (activating unconditionally) when no activator node is set. Since
+  // the row also contains a nested text input (the task-detail dialog's title/description
+  // fields), a row-wide keyboard listener risks swallowing keystrokes like Space there; scoping it
+  // to the handle avoids that class of bug entirely, and matches dnd-kit's own recommended
+  // "separate drag handle" pattern.
+  const { onKeyDown: activatorOnKeyDown, ...rowPointerListeners } = listeners ?? {};
 
   // While dragging, the in-place row becomes a placeholder for the slot being vacated -- the
   // floating `TaskItemOverlay` (rendered by `TaskList`'s `DragOverlay`) is what follows the
@@ -108,40 +133,53 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
     },
   });
 
-  function handleMoveChange(event: ChangeEvent<HTMLSelectElement>) {
-    const targetProjectId = Number(event.target.value);
-    if (!Number.isNaN(targetProjectId)) {
-      moveMutation.mutate(targetProjectId);
-    }
-  }
+  // Both "move to project" and delete now live in the row's "…" menu. The move targets are only
+  // included when there's somewhere to move to (i.e. more than one project exists).
+  const menuItems: ActionMenuEntry[] = [
+    ...(otherProjects.length > 0
+      ? [
+          { heading: 'Move to' } as const,
+          ...otherProjects.map((project) => ({
+            label: project.name,
+            onSelect: () => moveMutation.mutate(project.id),
+          })),
+          { separator: true } as const,
+        ]
+      : []),
+    { label: 'Delete', danger: true, onSelect: () => setIsConfirmingDelete(true) },
+  ];
 
-  if (isEditing) {
-    return (
-      <li ref={setNodeRef} style={style} className="task-item">
-        <EditTaskForm task={task} onDone={() => setIsEditing(false)} />
-      </li>
-    );
-  }
+  const rowClassName = [
+    'task-item',
+    isDragging && 'task-item--dragging',
+    isDraggable && 'task-item--draggable',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={
-        isDragging ? 'task-item task-item--dragging' : 'task-item'
-      }
+      className={rowClassName}
+      {...(isDraggable ? rowPointerListeners : {})}
     >
-      {isDraggable && (
-        <button
-          type="button"
-          className="task-item__drag-handle"
-          aria-label={`Reorder ${task.title}`}
-          {...attributes}
-          {...listeners}
-        >
-          ⠿
-        </button>
-      )}
+      <button
+        type="button"
+        className="task-item__drag-handle"
+        aria-label={`Reorder ${task.title}`}
+        ref={setActivatorNodeRef}
+        // Rendered even for non-draggable (completed) rows so the row layout stays stable, but
+        // inert there: disabled and hidden from the accessibility tree / tab order.
+        disabled={!isDraggable}
+        aria-hidden={!isDraggable}
+        // Only this handle activates keyboard-based dragging (see the note above `useSortable`);
+        // pointer-based dragging works from anywhere on the row via the `<li>`'s own listeners.
+        {...(isDraggable ? attributes : {})}
+        {...(isDraggable ? { onKeyDown: activatorOnKeyDown } : {})}
+      >
+        ⠿
+      </button>
       <input
         type="checkbox"
         className="task-item__checkbox"
@@ -150,8 +188,13 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
         disabled={toggleCompleteMutation.isPending}
         aria-label={task.isComplete ? `Mark "${task.title}" incomplete` : `Mark "${task.title}" complete`}
       />
-      <div className="task-item__body">
-        <p
+      <button
+        type="button"
+        className="task-item__body"
+        onClick={() => setIsDetailOpen(true)}
+        aria-label={`View "${task.title}"`}
+      >
+        <span
           className={
             task.isComplete
               ? 'task-item__title task-item__title--complete'
@@ -159,9 +202,9 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
           }
         >
           {task.title}
-        </p>
+        </span>
         {task.description && (
-          <p
+          <span
             className={
               task.isComplete
                 ? 'task-item__description task-item__description--complete'
@@ -169,35 +212,18 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
             }
           >
             {task.description}
-          </p>
+          </span>
         )}
-      </div>
-      <select
-        className="task-item__move"
-        aria-label={`Move ${task.title} to project`}
-        value=""
-        onChange={handleMoveChange}
-        disabled={moveMutation.isPending}
-      >
-        <option value="" disabled>
-          Move to…
-        </option>
-        {otherProjects.map((project) => (
-          <option key={project.id} value={project.id}>
-            {project.name}
-          </option>
-        ))}
-      </select>
-      <button type="button" className="task-item__action" onClick={() => setIsEditing(true)}>
-        Edit
       </button>
-      <button
-        type="button"
-        className="task-item__action task-item__action--danger"
-        onClick={() => setIsConfirmingDelete(true)}
-      >
-        Delete
-      </button>
+      <ActionMenu
+        className="task-item__menu"
+        buttonLabel={`More actions for "${task.title}"`}
+        items={menuItems}
+      />
+
+      {isDetailOpen && (
+        <TaskDetailDialog task={task} onClose={() => setIsDetailOpen(false)} />
+      )}
 
       {isConfirmingDelete && (
         <ConfirmDialog
@@ -210,84 +236,5 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
         />
       )}
     </li>
-  );
-}
-
-interface EditTaskFormProps {
-  task: TaskResponse;
-  onDone: () => void;
-}
-
-/** Inline edit form (title + description) shown in place of the task row while editing, mirroring
- * `ProjectSidebar`'s `EditProjectForm`. Field-validation failures render inline in this form, next
- * to the fields they describe; any other failure (500, connectivity) surfaces in the app-level
- * toast (via `showErrorToast`). */
-function EditTaskForm({ task, onDone }: EditTaskFormProps) {
-  const queryClient = useQueryClient();
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description ?? '');
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      updateTask(task.id, {
-        title,
-        ...(description.trim() ? { description } : {}),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', task.projectId] });
-      onDone();
-    },
-    onError: (error: unknown) => {
-      if (!extractFieldErrors(error)) {
-        showErrorToast(toToastMessage(error));
-      }
-    },
-  });
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    mutation.mutate();
-  }
-
-  const inlineErrorMessage = extractFieldErrors(mutation.error);
-
-  return (
-    <form className="edit-task-form" onSubmit={handleSubmit} aria-label={`Edit ${task.title}`}>
-      <label className="edit-task-form__field">
-        <span>Title</span>
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          required
-        />
-      </label>
-      <label className="edit-task-form__field">
-        <span>Description</span>
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={2}
-        />
-      </label>
-      {inlineErrorMessage && <p className="edit-task-form__error">{inlineErrorMessage}</p>}
-      <div className="edit-task-form__actions">
-        <button
-          type="button"
-          className="btn btn--secondary"
-          onClick={onDone}
-          disabled={mutation.isPending}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="btn btn--primary"
-          disabled={mutation.isPending || title.trim().length === 0}
-        >
-          {mutation.isPending ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </form>
   );
 }

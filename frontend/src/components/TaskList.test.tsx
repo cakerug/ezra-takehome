@@ -239,12 +239,43 @@ describe('TaskList', () => {
     expect(titleAfterReopen).not.toHaveClass('task-item__title--complete');
   });
 
-  it('edits a task and updates its displayed title/description', async () => {
+  it('toggles completion from the detail view checkbox and strikes through the title there too', async () => {
+    const user = userEvent.setup();
+    const task = makeTask({ id: 1, title: 'Buy milk' });
+    mockListTasks.mockResolvedValueOnce([task]);
+
+    const completed = { ...task, isComplete: true, completedAt: '2026-07-02T00:00:00Z' };
+    mockCompleteTask.mockResolvedValueOnce(completed);
+    mockListTasks.mockResolvedValueOnce([completed]);
+
+    renderTaskList();
+
+    await screen.findByText('Buy milk');
+
+    await user.click(screen.getByRole('button', { name: 'View "Buy milk"' }));
+    const dialog = await screen.findByRole('dialog');
+
+    const dialogCheckbox = within(dialog).getByRole('checkbox', { name: 'Mark "Buy milk" complete' });
+    await user.click(dialogCheckbox);
+
+    await waitFor(() => {
+      expect(mockCompleteTask).toHaveBeenCalledWith(1);
+    });
+
+    // The dialog's own title reflects the completed state too, not just the row behind it.
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Edit Task title' })).toHaveClass(
+        'task-detail__title--complete',
+      );
+    });
+  });
+
+  it('edits a task title from the detail view (click-to-edit, saved on Enter)', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Old title', description: 'Old desc' });
     mockListTasks.mockResolvedValueOnce([task]);
 
-    const updated = makeTask({ id: 1, title: 'New title', description: 'New desc' });
+    const updated = makeTask({ id: 1, title: 'New title', description: 'Old desc' });
     mockUpdateTask.mockResolvedValueOnce(updated);
     mockListTasks.mockResolvedValueOnce([updated]);
 
@@ -252,28 +283,30 @@ describe('TaskList', () => {
 
     await screen.findByText('Old title');
 
-    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    // Clicking the task row opens its detail view.
+    await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
+    const dialog = await screen.findByRole('dialog');
 
-    const form = screen.getByRole('form', { name: 'Edit Old title' });
-    const titleInput = within(form).getByLabelText('Title');
+    // Click the title to turn it into an input, edit, and commit with Enter.
+    await user.click(within(dialog).getByRole('button', { name: 'Edit Task title' }));
+    const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
     await user.clear(titleInput);
-    await user.type(titleInput, 'New title');
-
-    const descInput = within(form).getByLabelText('Description');
-    await user.clear(descInput);
-    await user.type(descInput, 'New desc');
-
-    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    await user.type(titleInput, 'New title{Enter}');
 
     await waitFor(() => {
-      expect(mockUpdateTask).toHaveBeenCalledWith(1, { title: 'New title', description: 'New desc' });
+      // The whole task is replaced, so the untouched description is sent alongside the new title.
+      expect(mockUpdateTask).toHaveBeenCalledWith(1, {
+        title: 'New title',
+        description: 'Old desc',
+      });
     });
 
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
     expect(await screen.findByText('New title')).toBeInTheDocument();
     expect(screen.queryByText('Old title')).not.toBeInTheDocument();
   });
 
-  it('shows a server-side validation error inline on the edit-task form, and does not trigger the Toast', async () => {
+  it('shows a server-side validation error inline in the detail view, and does not trigger the Toast', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Old title' });
     mockListTasks.mockResolvedValue([task]);
@@ -289,27 +322,26 @@ describe('TaskList', () => {
 
     await screen.findByText('Old title');
 
-    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
+    const dialog = await screen.findByRole('dialog');
 
-    const form = screen.getByRole('form', { name: 'Edit Old title' });
-    const titleInput = within(form).getByLabelText('Title');
+    await user.click(within(dialog).getByRole('button', { name: 'Edit Task title' }));
+    const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
     await user.clear(titleInput);
-    await user.type(titleInput, 'A'.repeat(201));
-
-    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    await user.type(titleInput, `${'A'.repeat(201)}{Enter}`);
 
     await waitFor(() => {
       expect(mockUpdateTask).toHaveBeenCalled();
     });
 
     expect(
-      await within(form).findByText('Title must be at most 200 characters.'),
+      await within(dialog).findByText('Title must be at most 200 characters.'),
     ).toBeInTheDocument();
-    // The validation error is shown inline on the form, not via the generic Toast.
+    // The validation error is shown inline in the detail view, not via the generic Toast.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('deletes a task via the confirm dialog', async () => {
+  it('deletes a task via the overflow menu and confirm dialog', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Doomed task' });
     mockListTasks.mockResolvedValueOnce([task]);
@@ -320,7 +352,9 @@ describe('TaskList', () => {
 
     await screen.findByText('Doomed task');
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    // Delete lives behind the row's "…" overflow menu now.
+    await user.click(screen.getByRole('button', { name: 'More actions for "Doomed task"' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
     const dialog = await screen.findByRole('alertdialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
@@ -375,8 +409,9 @@ describe('TaskList', () => {
 
     await screen.findByText('Stubborn task');
 
-    const select = screen.getByLabelText('Move Stubborn task to project');
-    await user.selectOptions(select, 'Work');
+    // "Move to <project>" lives in the row's "…" overflow menu now.
+    await user.click(screen.getByRole('button', { name: 'More actions for "Stubborn task"' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Work' }));
 
     await waitFor(() => {
       expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
@@ -387,7 +422,7 @@ describe('TaskList', () => {
     expect(screen.getByText('Stubborn task')).toBeInTheDocument();
   });
 
-  it('selecting a project from the move dropdown calls moveTask with the target id, and the task disappears after refetch', async () => {
+  it('picking a project from the move menu calls moveTask with the target id, and the task disappears after refetch', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Movable task', projectId: 1 });
     mockListTasks.mockResolvedValueOnce([task]);
@@ -401,8 +436,8 @@ describe('TaskList', () => {
 
     await screen.findByText('Movable task');
 
-    const select = screen.getByLabelText('Move Movable task to project');
-    await user.selectOptions(select, 'Work');
+    await user.click(screen.getByRole('button', { name: 'More actions for "Movable task"' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Work' }));
 
     await waitFor(() => {
       expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
