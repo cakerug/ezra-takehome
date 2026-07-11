@@ -64,6 +64,15 @@ public static class TaskOperations
 
         var task = await FindTaskOrThrowAsync(db, id);
 
+        // A completed task is locked for editing; the client must reopen it (uncomplete) first.
+        // The complete/uncomplete toggle, move, and delete all stay allowed -- only field edits
+        // are blocked here.
+        if (task.IsComplete)
+        {
+            throw new ForbiddenOperationException(
+                "A completed task cannot be edited. Mark it incomplete first.");
+        }
+
         task.Title = request.Title!;
         task.Description = request.Description;
 

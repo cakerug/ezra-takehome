@@ -659,7 +659,21 @@ button:disabled {
 }
 
 /* --- Task detail view (opened by clicking a task row) --- */
+/* The dialog gets wider than the default modal to fit the editing body + actions sidebar. */
+.dialog:has(.task-detail) {
+  max-width: 640px;
+}
+
 .task-detail {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+
+/* Left column: title/description editing buffer + Save/Close actions. */
+.task-detail__main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -676,15 +690,53 @@ button:disabled {
   margin-top: 10px;
 }
 
-.task-detail__header .editable-field__display,
-.task-detail__header .editable-field__input {
+.task-detail__title-input,
+.task-detail__description-input {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.task-detail__title-input {
   flex: 1;
   min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.task-detail__description-input {
+  font-size: 14px;
+  resize: vertical;
+}
+
+/* Read-only (completed) fields read as inert: muted, no editing affordance. */
+.task-detail__title-input:read-only,
+.task-detail__description-input:read-only {
+  background: var(--bg-muted);
+  cursor: default;
+}
+
+.task-detail__title-input--complete,
+.task-detail__description-input--complete {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-detail__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .task-detail__actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 8px;
 }
 
@@ -694,58 +746,65 @@ button:disabled {
   margin: 0;
 }
 
-/* Click-to-edit fields: the read-only display and the input share the same box metrics (full
-   width, same border/padding) so swapping between them doesn't shift the layout, and the display
-   state reads as an editable field on its own -- not just on hover -- via a visible border. */
-.editable-field__display,
-.editable-field__input {
-  box-sizing: border-box;
-  width: 100%;
+/* Right column: the same secondary actions as the row's "…" menu, always visible here. */
+.task-detail__sidebar {
+  flex-shrink: 0;
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
 }
 
-.editable-field__display {
+.task-detail__sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-detail__sidebar-heading {
+  margin: 0 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.task-detail__sidebar-item {
+  border: none;
+  background: transparent;
+  color: var(--text);
   text-align: left;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
   font: inherit;
+  font-size: 13px;
   padding: 6px 8px;
   border-radius: 4px;
-  cursor: text;
-  overflow-wrap: anywhere;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.editable-field__display:hover {
-  border-color: var(--accent);
+.task-detail__sidebar-item:hover:not(:disabled) {
+  background: var(--border);
 }
 
-.editable-field__display--empty {
-  color: var(--text-muted);
+.task-detail__sidebar-item--danger {
+  color: var(--danger);
 }
 
-.editable-field__input {
-  font: inherit;
-  padding: 6px 8px;
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  color: var(--text);
-  background: var(--bg);
-  resize: vertical;
-}
+/* On narrow viewports, stack the sidebar below the body so the dialog doesn't overflow. */
+@media (max-width: 560px) {
+  .task-detail {
+    flex-direction: column;
+  }
 
-.task-detail__title.editable-field__display,
-.task-detail__title.editable-field__input {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.task-detail__description.editable-field__display,
-.task-detail__description.editable-field__input {
-  font-size: 14px;
-}
-
-.task-detail__title--complete.editable-field__display,
-.task-detail__description--complete.editable-field__display {
-  text-decoration: line-through;
-  color: var(--text-muted);
+  .task-detail__sidebar {
+    width: auto;
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
 }

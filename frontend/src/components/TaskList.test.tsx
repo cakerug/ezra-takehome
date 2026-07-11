@@ -262,15 +262,15 @@ describe('TaskList', () => {
       expect(mockCompleteTask).toHaveBeenCalledWith(1);
     });
 
-    // The dialog's own title reflects the completed state too, not just the row behind it.
+    // The dialog's own title field reflects the completed state too, not just the row behind it.
     await waitFor(() => {
-      expect(within(dialog).getByRole('button', { name: 'Edit Task title' })).toHaveClass(
-        'task-detail__title--complete',
+      expect(within(dialog).getByRole('textbox', { name: 'Task title' })).toHaveClass(
+        'task-detail__title-input--complete',
       );
     });
   });
 
-  it('edits a task title from the detail view (click-to-edit, saved on Enter)', async () => {
+  it('edits a task from the detail view via the explicit Save button', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Old title', description: 'Old desc' });
     mockListTasks.mockResolvedValueOnce([task]);
@@ -287,11 +287,11 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
     const dialog = await screen.findByRole('dialog');
 
-    // Click the title to turn it into an input, edit, and commit with Enter.
-    await user.click(within(dialog).getByRole('button', { name: 'Edit Task title' }));
+    // Edit the buffered title input, then commit both fields with the single Save button.
     const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
     await user.clear(titleInput);
-    await user.type(titleInput, 'New title{Enter}');
+    await user.type(titleInput, 'New title');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       // The whole task is replaced, so the untouched description is sent alongside the new title.
@@ -301,9 +301,89 @@ describe('TaskList', () => {
       });
     });
 
+    // No unsaved changes remain, so Close doesn't prompt for discard.
     await user.click(within(dialog).getByRole('button', { name: 'Close' }));
     expect(await screen.findByText('New title')).toBeInTheDocument();
     expect(screen.queryByText('Old title')).not.toBeInTheDocument();
+  });
+
+  it('completed tasks are read-only in the detail view (no Save button) until reopened', async () => {
+    const user = userEvent.setup();
+    const completed = makeTask({
+      id: 1,
+      title: 'Done task',
+      isComplete: true,
+      completedAt: '2026-07-01T00:00:00Z',
+    });
+    mockListTasks.mockResolvedValueOnce([completed]);
+
+    renderTaskList();
+
+    await screen.findByText('Done task');
+
+    await user.click(screen.getByRole('button', { name: 'View "Done task"' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // Fields are read-only and there's no Save affordance while the task is complete.
+    expect(within(dialog).getByRole('textbox', { name: 'Task title' })).toHaveAttribute('readonly');
+    expect(within(dialog).getByRole('textbox', { name: 'Task description' })).toHaveAttribute(
+      'readonly',
+    );
+    expect(within(dialog).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/Completed tasks are locked/)).toBeInTheDocument();
+  });
+
+  it('prompts to discard unsaved changes when closing a dirty detail view', async () => {
+    const user = userEvent.setup();
+    const task = makeTask({ id: 1, title: 'Old title', description: 'Old desc' });
+    mockListTasks.mockResolvedValue([task]);
+
+    renderTaskList();
+
+    await screen.findByText('Old title');
+
+    await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // Make the buffer dirty, then try to close: a discard confirmation appears.
+    const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
+    await user.type(titleInput, ' edited');
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+
+    const confirm = await screen.findByRole('alertdialog');
+    expect(within(confirm).getByText('Discard changes?')).toBeInTheDocument();
+
+    // "Keep editing" returns to the still-open detail view without saving.
+    await user.click(within(confirm).getByRole('button', { name: 'Keep editing' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(mockUpdateTask).not.toHaveBeenCalled();
+
+    // Confirming discard closes the detail view for good.
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    await user.click(await screen.findByRole('button', { name: 'Discard' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes a clean detail view immediately without a discard prompt', async () => {
+    const user = userEvent.setup();
+    const task = makeTask({ id: 1, title: 'Old title' });
+    mockListTasks.mockResolvedValue([task]);
+
+    renderTaskList();
+
+    await screen.findByText('Old title');
+
+    await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
+    await screen.findByRole('dialog');
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('shows a server-side validation error inline in the detail view, and does not trigger the Toast', async () => {
@@ -325,10 +405,10 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
     const dialog = await screen.findByRole('dialog');
 
-    await user.click(within(dialog).getByRole('button', { name: 'Edit Task title' }));
     const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
     await user.clear(titleInput);
-    await user.type(titleInput, `${'A'.repeat(201)}{Enter}`);
+    await user.type(titleInput, 'A'.repeat(201));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(mockUpdateTask).toHaveBeenCalled();
@@ -339,6 +419,60 @@ describe('TaskList', () => {
     ).toBeInTheDocument();
     // The validation error is shown inline in the detail view, not via the generic Toast.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('moves a task from the detail view sidebar and closes the dialog', async () => {
+    const user = userEvent.setup();
+    const task = makeTask({ id: 1, title: 'Movable task', projectId: 1 });
+    mockListTasks.mockResolvedValueOnce([task]);
+
+    const moved = { ...task, projectId: 2 };
+    mockMoveTask.mockResolvedValueOnce(moved);
+    mockListTasks.mockResolvedValueOnce([]);
+
+    renderTaskList(1);
+
+    await screen.findByText('Movable task');
+
+    await user.click(screen.getByRole('button', { name: 'View "Movable task"' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // The sidebar surfaces the same "move to project" targets as the row's "…" menu.
+    await user.click(within(dialog).getByRole('button', { name: 'Work' }));
+
+    await waitFor(() => {
+      expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
+    });
+    // Moving closes the detail view (the task no longer belongs to this project).
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('deletes a task from the detail view sidebar via the confirm dialog', async () => {
+    const user = userEvent.setup();
+    const task = makeTask({ id: 1, title: 'Doomed task' });
+    mockListTasks.mockResolvedValueOnce([task]);
+    mockDeleteTask.mockResolvedValueOnce(undefined);
+    mockListTasks.mockResolvedValueOnce([]);
+
+    renderTaskList();
+
+    await screen.findByText('Doomed task');
+
+    await user.click(screen.getByRole('button', { name: 'View "Doomed task"' }));
+    const dialog = await screen.findByRole('dialog');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const confirm = await screen.findByRole('alertdialog');
+    await user.click(within(confirm).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(mockDeleteTask).toHaveBeenCalledWith(1);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('deletes a task via the overflow menu and confirm dialog', async () => {

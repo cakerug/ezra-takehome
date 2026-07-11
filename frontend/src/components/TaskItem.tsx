@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { KeyboardEventHandler } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -176,7 +177,9 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
         // Only this handle activates keyboard-based dragging (see the note above `useSortable`);
         // pointer-based dragging works from anywhere on the row via the `<li>`'s own listeners.
         {...(isDraggable ? attributes : {})}
-        {...(isDraggable ? { onKeyDown: activatorOnKeyDown } : {})}
+        {...(isDraggable && activatorOnKeyDown
+          ? { onKeyDown: activatorOnKeyDown as KeyboardEventHandler<HTMLButtonElement> }
+          : {})}
       >
         ⠿
       </button>
@@ -222,7 +225,11 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
       />
 
       {isDetailOpen && (
-        <TaskDetailDialog task={task} onClose={() => setIsDetailOpen(false)} />
+        <TaskDetailDialog
+          task={task}
+          otherProjects={otherProjects}
+          onClose={() => setIsDetailOpen(false)}
+        />
       )}
 
       {isConfirmingDelete && (

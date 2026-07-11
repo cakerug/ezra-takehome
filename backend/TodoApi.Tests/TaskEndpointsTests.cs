@@ -498,6 +498,50 @@ public class TaskEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdatingCompletedTask_Returns403_AndLeavesTaskUnchanged()
+    {
+        var client = _factory.CreateClient();
+
+        var projectId = await CreateProjectAsync(client, "Project");
+        var task = await CreateTaskAsync(client, projectId, "Original");
+
+        var completeResponse = await client.PutAsync($"/api/tasks/{task.Id}/complete", null);
+        Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+        // Editing a completed task is a business-rule violation -> 403, and nothing is persisted.
+        var updateResponse = await client.PutAsJsonAsync($"/api/tasks/{task.Id}", new UpdateTaskRequest
+        {
+            Title = "Edited while complete",
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+
+        var listResponse = await client.GetAsync($"/api/projects/{projectId}/tasks");
+        var listBody = await listResponse.Content.ReadFromJsonAsync<List<TaskResponse>>();
+        Assert.Contains(listBody!, t => t.Id == task.Id && t.Title == "Original");
+    }
+
+    [Fact]
+    public async Task UpdatingIncompleteTask_Succeeds()
+    {
+        var client = _factory.CreateClient();
+
+        var projectId = await CreateProjectAsync(client, "Project");
+        var task = await CreateTaskAsync(client, projectId, "Original");
+
+        var updateResponse = await client.PutAsJsonAsync($"/api/tasks/{task.Id}", new UpdateTaskRequest
+        {
+            Title = "Edited",
+            Description = "New description",
+        });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var updated = await updateResponse.Content.ReadFromJsonAsync<TaskResponse>();
+        Assert.NotNull(updated);
+        Assert.Equal("Edited", updated!.Title);
+        Assert.Equal("New description", updated.Description);
+    }
+
+    [Fact]
     public async Task DeletingTask_DoesNotAffectOtherTasksInProject()
     {
         var client = _factory.CreateClient();
