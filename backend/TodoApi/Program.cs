@@ -23,14 +23,19 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SupportNonNullableReferenceTypes());
 builder.Services.AddHealthChecks();
 
-// The frontend runs on Vite's default dev port. No credentials/cookies are involved (no auth
-// yet), so a simple allow-list of the dev origin plus the methods/headers the API actually uses
-// is enough — no need for AllowCredentials or a wildcard origin.
+// Origin(s) the SPA is served from, for CORS. Read from configuration (env var `FrontendOrigins`,
+// comma-separated for multiple) so the dev port isn't baked in and can be overridden per run;
+// defaults to Vite's default dev port. No credentials/cookies are involved (no auth yet), so a
+// simple allow-list plus the methods/headers the API actually uses is enough — no AllowCredentials
+// or wildcard origin needed.
+var frontendOrigins = (builder.Configuration["FrontendOrigins"] ?? "http://localhost:5173")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(frontendOrigins)
             .WithMethods("GET", "POST", "PUT", "DELETE")
             .WithHeaders("Content-Type", CorrelationIdMiddleware.HeaderName);
     });
