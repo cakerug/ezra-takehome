@@ -260,9 +260,6 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
 }
 
 .edit-project-form {
@@ -312,10 +309,41 @@ button:disabled {
   margin: 0;
 }
 
+.new-project-form__actions,
 .edit-project-form__actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.project-sidebar__create-button {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.dialog__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+}
+
+.dialog__title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  overflow-wrap: anywhere;
 }
 
 .confirm-dialog__overlay {
@@ -499,12 +527,15 @@ button:disabled {
   border-top: none;
 }
 
-.new-task-form__heading {
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0;
+.new-task-form__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.task-list__add-button {
+  margin-top: 16px;
+  width: 100%;
 }
 
 .new-task-form__field,

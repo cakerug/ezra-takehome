@@ -6,6 +6,7 @@ import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
+import { Dialog } from './Dialog';
 import { NewProjectForm } from './NewProjectForm';
 
 /** `null` means no project is currently selected. The seeded default project (`isDefault: true`)
@@ -26,6 +27,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
 
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [pendingDeleteProject, setPendingDeleteProject] = useState<ProjectResponse | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   return (
     <nav aria-label="Projects" className="project-sidebar">
@@ -80,7 +82,22 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
         </ul>
       )}
 
-      <NewProjectForm />
+      <button
+        type="button"
+        className="btn btn--secondary project-sidebar__create-button"
+        onClick={() => setIsCreateDialogOpen(true)}
+      >
+        + Create new project
+      </button>
+
+      {isCreateDialogOpen && (
+        <Dialog title="New project" onClose={() => setIsCreateDialogOpen(false)}>
+          <NewProjectForm
+            onCreated={() => setIsCreateDialogOpen(false)}
+            onCancel={() => setIsCreateDialogOpen(false)}
+          />
+        </Dialog>
+      )}
 
       {pendingDeleteProject && (
         <DeleteProjectDialog

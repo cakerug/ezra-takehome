@@ -109,6 +109,7 @@ describe('TaskList', () => {
 
     await screen.findByText('Buy milk');
 
+    await user.click(screen.getByRole('button', { name: '+ Add task' }));
     await user.type(screen.getByLabelText('Title'), 'Walk dog');
     await user.click(screen.getByRole('button', { name: 'Add task' }));
 
@@ -117,6 +118,36 @@ describe('TaskList', () => {
     });
 
     expect(await screen.findByText('Walk dog')).toBeInTheDocument();
+
+    // The form stays open (cleared, ready for another) so tasks can be added in a row -- so the
+    // "+ Add task" toggle is gone and the title field is present, empty, and focused.
+    expect(screen.queryByRole('button', { name: '+ Add task' })).not.toBeInTheDocument();
+    const titleInput = screen.getByLabelText('Title');
+    expect(titleInput).toHaveValue('');
+    expect(titleInput).toHaveFocus();
+  });
+
+  it('submits the new-task form when Enter is pressed in the title field', async () => {
+    const user = userEvent.setup();
+    mockListTasks.mockResolvedValueOnce([]);
+
+    const created = makeTask({ id: 2, title: 'Quick task' });
+    mockCreateTask.mockResolvedValueOnce(created);
+    mockListTasks.mockResolvedValueOnce([created]);
+
+    renderTaskList();
+
+    await screen.findByText('No tasks yet.');
+
+    await user.click(screen.getByRole('button', { name: '+ Add task' }));
+    // Type the title and press Enter (no explicit button click) -- the form should submit.
+    await user.type(screen.getByLabelText('Title'), 'Quick task{Enter}');
+
+    await waitFor(() => {
+      expect(mockCreateTask).toHaveBeenCalledWith(1, { title: 'Quick task' });
+    });
+
+    expect(await screen.findByText('Quick task')).toBeInTheDocument();
   });
 
   it('shows a server-side validation error inline on the new-task form, and does not trigger the Toast', async () => {
@@ -134,6 +165,7 @@ describe('TaskList', () => {
 
     await screen.findByText('No tasks yet.');
 
+    await user.click(screen.getByRole('button', { name: '+ Add task' }));
     await user.type(screen.getByLabelText('Title'), 'A'.repeat(201));
     await user.click(screen.getByRole('button', { name: 'Add task' }));
 

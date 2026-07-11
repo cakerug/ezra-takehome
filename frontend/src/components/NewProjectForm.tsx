@@ -5,6 +5,12 @@ import { createProject } from '../api/client';
 import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 
+interface NewProjectFormProps {
+  /** Called after the project is successfully created, e.g. so the caller can close its dialog. */
+  onCreated?: () => void;
+  onCancel?: () => void;
+}
+
 /**
  * "New project" form (name + description). Posts via a React Query mutation; on success,
  * invalidates the `['projects']` query so `ProjectSidebar` refetches from the server -- per the
@@ -14,7 +20,7 @@ import { showErrorToast } from '../toastBus';
  * Field-validation failures render inline below; any other failure surfaces in the app-level
  * toast (via `showErrorToast`).
  */
-export function NewProjectForm() {
+export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -29,6 +35,7 @@ export function NewProjectForm() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setName('');
       setDescription('');
+      onCreated?.();
     },
     onError: (error: unknown) => {
       if (!extractFieldErrors(error)) {
@@ -46,7 +53,6 @@ export function NewProjectForm() {
 
   return (
     <form className="new-project-form" onSubmit={handleSubmit}>
-      <h3 className="new-project-form__heading">New project</h3>
       <label className="new-project-form__field">
         <span>Name</span>
         <input
@@ -65,13 +71,25 @@ export function NewProjectForm() {
         />
       </label>
       {errorMessage && <p className="new-project-form__error">{errorMessage}</p>}
-      <button
-        type="submit"
-        className="btn btn--primary"
-        disabled={mutation.isPending || name.trim().length === 0}
-      >
-        {mutation.isPending ? 'Creating…' : 'Add project'}
-      </button>
+      <div className="new-project-form__actions">
+        {onCancel && (
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={onCancel}
+            disabled={mutation.isPending}
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={mutation.isPending || name.trim().length === 0}
+        >
+          {mutation.isPending ? 'Creating…' : 'Add project'}
+        </button>
+      </div>
     </form>
   );
 }

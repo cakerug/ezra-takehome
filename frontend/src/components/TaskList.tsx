@@ -41,6 +41,7 @@ interface TaskListProps {
 export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [isAddingTask, setIsAddingTask] = useState(false);
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
@@ -127,7 +128,19 @@ export function TaskList({ projectId }: TaskListProps) {
         </DndContext>
       )}
 
-      <NewTaskForm projectId={projectId} />
+      {isAddingTask ? (
+        // Intentionally left open after a create (no onCreated handler): the form clears and
+        // refocuses its title field so several tasks can be added in a row. Cancel closes it.
+        <NewTaskForm projectId={projectId} onCancel={() => setIsAddingTask(false)} />
+      ) : (
+        <button
+          type="button"
+          className="btn btn--secondary task-list__add-button"
+          onClick={() => setIsAddingTask(true)}
+        >
+          + Add task
+        </button>
+      )}
     </div>
   );
 }
