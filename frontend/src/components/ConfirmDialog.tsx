@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Generic confirmation dialog, not tied to any particular entity type. Callers supply the
@@ -52,7 +53,11 @@ export function ConfirmDialog({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isConfirming, onCancel]);
 
-  return (
+  // Portaled to <body> rather than rendered in place: the task delete confirmation is opened from
+  // inside a draggable row that has its own pointer/keyboard listeners for dnd-kit -- without a
+  // portal, e.g. pressing Space on a button here would bubble through that row's DOM subtree and
+  // could be intercepted by those listeners (read as "pick up") instead of activating the button.
+  return createPortal(
     <div className="confirm-dialog__overlay" role="presentation" onClick={onCancel}>
       <div
         className="confirm-dialog"
@@ -88,6 +93,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

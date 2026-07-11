@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
 /**
@@ -7,12 +8,17 @@ import type { ReactNode } from 'react';
  * conventions so dialogs across the app behave consistently.
  */
 export interface DialogProps {
-  title: string;
+  /** Visible heading. Omit for dialogs whose content supplies its own heading (e.g. the task
+   * detail view, whose title is an editable field in the body) -- pass `ariaLabel` instead so the
+   * dialog still has an accessible name. */
+  title?: string;
+  /** Accessible name used when there's no visible `title`. Ignored when `title` is set. */
+  ariaLabel?: string;
   onClose: () => void;
   children: ReactNode;
 }
 
-export function Dialog({ title, onClose, children }: DialogProps) {
+export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,22 +35,30 @@ export function Dialog({ title, onClose, children }: DialogProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  return (
+  // Portaled to <body> rather than rendered in place: some callers (e.g. TaskDetailDialog) open
+  // this from inside a draggable row that has its own pointer/keyboard listeners for dnd-kit --
+  // without a portal, keystrokes typed into this dialog's fields would bubble through that row's
+  // DOM subtree and could be intercepted by those listeners (e.g. Space being read as "pick up").
+  return createPortal(
     <div className="dialog__overlay" role="presentation" onClick={onClose}>
       <div
         className="dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-labelledby={title ? 'dialog-title' : undefined}
+        aria-label={title ? undefined : ariaLabel}
         tabIndex={-1}
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="dialog-title" className="dialog__title">
-          {title}
-        </h2>
+        {title && (
+          <h2 id="dialog-title" className="dialog__title">
+            {title}
+          </h2>
+        )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
