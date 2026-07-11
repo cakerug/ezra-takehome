@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listProjects } from './api/client';
-import { ProjectSidebar, type SelectedProjectId } from './components/ProjectSidebar';
+import { ActionMenu } from './components/ActionMenu';
+import { Dialog } from './components/Dialog';
+import {
+  DeleteProjectDialog,
+  EditProjectForm,
+  ProjectSidebar,
+  type SelectedProjectId,
+} from './components/ProjectSidebar';
 import { TaskList } from './components/TaskList';
 
 function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProjectId }) {
@@ -11,6 +18,9 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
     queryKey: ['projects'],
     queryFn: listProjects,
   });
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const selectedProject =
     selectedProjectId === null
@@ -25,11 +35,38 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
 
   return (
     <>
-      <h1 className="content__title">{selectedProject.name}</h1>
+      <div className="content__header">
+        <h1 className="content__title">{selectedProject.name}</h1>
+        {/* All project actions (Edit + Delete) live here, from a "…" next to the title -- the
+            sidebar rows carry none. The default project (Inbox) can't be edited or deleted, so it
+            gets no menu at all. */}
+        {!selectedProject.isDefault && (
+          <ActionMenu
+            buttonLabel={`More actions for ${selectedProject.name}`}
+            items={[
+              { label: 'Edit', onSelect: () => setIsEditOpen(true) },
+              { label: 'Delete', danger: true, onSelect: () => setIsDeleteOpen(true) },
+            ]}
+          />
+        )}
+      </div>
       {selectedProject.description && (
         <p className="content__description">{selectedProject.description}</p>
       )}
       <TaskList projectId={selectedProject.id} />
+
+      {isEditOpen && (
+        <Dialog title="Edit project" onClose={() => setIsEditOpen(false)}>
+          <EditProjectForm project={selectedProject} onDone={() => setIsEditOpen(false)} />
+        </Dialog>
+      )}
+
+      {isDeleteOpen && (
+        <DeleteProjectDialog
+          project={selectedProject}
+          onClose={() => setIsDeleteOpen(false)}
+        />
+      )}
     </>
   );
 }

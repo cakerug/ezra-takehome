@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProjectResponse } from '../api/generated-schemas';
 import { ApiError } from '../api/errors';
-import { ProjectSidebar } from './ProjectSidebar';
+import { DeleteProjectDialog, EditProjectForm, ProjectSidebar } from './ProjectSidebar';
 import { ToastHost } from './ToastHost';
 
 vi.mock('../api/client', async () => {
@@ -42,6 +42,34 @@ function renderSidebar() {
   return render(
     <QueryClientProvider client={queryClient}>
       <ProjectSidebar selectedProjectId={null} onSelectProject={() => {}} />
+      <ToastHost />
+    </QueryClientProvider>,
+  );
+}
+
+/** Editing lives in the content-area header now (not the sidebar), so `EditProjectForm` is
+ * exercised directly rather than through the sidebar UI. */
+function renderEditForm(onDone = () => {}) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <EditProjectForm project={work} onDone={onDone} />
+      <ToastHost />
+    </QueryClientProvider>,
+  );
+}
+
+/** Deleting also lives in the content-area header now (not the sidebar), so `DeleteProjectDialog`
+ * is exercised directly rather than through the sidebar UI. */
+function renderDeleteDialog(onClose = () => {}) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DeleteProjectDialog project={work} onClose={onClose} />
       <ToastHost />
     </QueryClientProvider>,
   );
@@ -127,9 +155,8 @@ describe('ProjectSidebar', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('edits a project and updates its displayed name', async () => {
+  it('edits a project: saving sends the update and closes the form', async () => {
     const user = userEvent.setup();
-    mockListProjects.mockResolvedValueOnce([inbox, work]);
     const updated: ProjectResponse = {
       id: 2,
       name: 'Work Renamed',
@@ -137,13 +164,9 @@ describe('ProjectSidebar', () => {
       isDefault: false,
     };
     mockUpdateProject.mockResolvedValueOnce(updated);
-    mockListProjects.mockResolvedValueOnce([inbox, updated]);
+    const onDone = vi.fn();
 
-    renderSidebar();
-
-    await screen.findByText('Work');
-
-    await user.click(screen.getByRole('button', { name: 'Edit Work' }));
+    renderEditForm(onDone);
 
     const editForm = screen.getByRole('form', { name: 'Edit Work' });
 
@@ -163,14 +186,12 @@ describe('ProjectSidebar', () => {
         description: 'New description',
       });
     });
-
-    expect(await screen.findByText('Work Renamed')).toBeInTheDocument();
-    expect(screen.queryByText('Work', { exact: true })).not.toBeInTheDocument();
+    // On success the form calls onDone so the content-area dialog closes.
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
   });
 
   it('shows a server-side validation error inline on the edit-project form, and does not trigger the Toast', async () => {
     const user = userEvent.setup();
-    mockListProjects.mockResolvedValueOnce([inbox, work]);
 
     const validationError = new ApiError(400, {
       title: 'One or more validation errors occurred.',
@@ -178,12 +199,9 @@ describe('ProjectSidebar', () => {
       errors: { Name: ['Name must be at most 100 characters.'] },
     });
     mockUpdateProject.mockRejectedValueOnce(validationError);
+    const onDone = vi.fn();
 
-    renderSidebar();
-
-    await screen.findByText('Work');
-
-    await user.click(screen.getByRole('button', { name: 'Edit Work' }));
+    renderEditForm(onDone);
 
     const editForm = screen.getByRole('form', { name: 'Edit Work' });
 
@@ -202,9 +220,11 @@ describe('ProjectSidebar', () => {
     ).toBeInTheDocument();
     // The validation error is shown inline on the form, not via the generic Toast.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // A validation failure keeps the form open for correction.
+    expect(onDone).not.toHaveBeenCalled();
   });
 
-  it('never renders a delete control for the default (Inbox) project', async () => {
+  it('renders select-only rows: no per-project action menu in the sidebar', async () => {
     mockListProjects.mockResolvedValue([inbox, work]);
 
     renderSidebar();
@@ -212,43 +232,30 @@ describe('ProjectSidebar', () => {
     await screen.findByText('Inbox');
     await screen.findByText('Work');
 
-    // Non-default project has a delete control...
-    expect(screen.getByRole('button', { name: 'Delete Work' })).toBeInTheDocument();
-
-    // ...but the Inbox row has none at all -- not disabled, not present.
-    expect(screen.queryByRole('button', { name: 'Delete Inbox' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Delete Inbox')).not.toBeInTheDocument();
-
-    const inboxRow = screen.getByText('Inbox').closest('li');
-    expect(inboxRow).not.toBeNull();
-    expect(within(inboxRow!).queryByText('Delete')).not.toBeInTheDocument();
+    // All project actions moved to the content-area header, so no row carries an overflow menu --
+    // not the default project, and not a regular one either.
+    expect(screen.queryByRole('button', { name: /More actions/ })).not.toBeInTheDocument();
+    // The rows are still selectable (they're plain buttons named after the project).
+    expect(screen.getByRole('button', { name: 'Work' })).toBeInTheDocument();
   });
 
-  it('opens a confirmation dialog on delete; confirming calls deleteProject, canceling does not', async () => {
+  it('confirming the delete dialog calls deleteProject; canceling does not', async () => {
     const user = userEvent.setup();
-    mockListProjects.mockResolvedValue([inbox, work]);
     mockDeleteProject.mockResolvedValue(undefined);
+    const onClose = vi.fn();
 
-    renderSidebar();
-
-    await screen.findByText('Work');
-
-    await user.click(screen.getByRole('button', { name: 'Delete Work' }));
+    renderDeleteDialog(onClose);
 
     const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText(/Delete "Work"\?/)).toBeInTheDocument();
 
-    // Cancel: no deletion call, project remains.
+    // Cancel: no deletion call; the host is told to close.
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(mockDeleteProject).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.getByText('Work')).toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
 
-    // Now confirm the flow actually deletes.
-    await user.click(screen.getByRole('button', { name: 'Delete Work' }));
-    const dialogAgain = await screen.findByRole('alertdialog');
-    await user.click(within(dialogAgain).getByRole('button', { name: 'Delete' }));
-
+    // Confirm: the flow actually deletes.
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     await waitFor(() => {
       expect(mockDeleteProject).toHaveBeenCalledWith(2);
     });
@@ -256,7 +263,6 @@ describe('ProjectSidebar', () => {
 
   it('surfaces a failed delete in a Toast and keeps the dialog open for retry', async () => {
     const user = userEvent.setup();
-    mockListProjects.mockResolvedValue([inbox, work]);
     mockDeleteProject.mockRejectedValueOnce(
       new ApiError(500, {
         title: 'Internal Server Error',
@@ -265,11 +271,8 @@ describe('ProjectSidebar', () => {
       }),
     );
 
-    renderSidebar();
+    renderDeleteDialog();
 
-    await screen.findByText('Work');
-
-    await user.click(screen.getByRole('button', { name: 'Delete Work' }));
     const dialog = await screen.findByRole('alertdialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 

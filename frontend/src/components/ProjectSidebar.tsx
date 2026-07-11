@@ -25,8 +25,6 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
     queryFn: listProjects,
   });
 
-  const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
-  const [pendingDeleteProject, setPendingDeleteProject] = useState<ProjectResponse | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   return (
@@ -37,48 +35,24 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
 
       {projects && (
         <ul className="project-sidebar__list">
-          {projects.map((project) =>
-            editingProjectId === project.id ? (
-              <li key={project.id}>
-                <EditProjectForm project={project} onDone={() => setEditingProjectId(null)} />
-              </li>
-            ) : (
-              <li key={project.id} className="project-sidebar__row">
-                <button
-                  type="button"
-                  className={
-                    project.id === selectedProjectId
-                      ? 'project-sidebar__item project-sidebar__item--selected'
-                      : 'project-sidebar__item'
-                  }
-                  onClick={() => onSelectProject(project.id)}
-                  aria-current={project.id === selectedProjectId ? 'true' : undefined}
-                >
-                  {project.name}
-                </button>
-                <div className="project-sidebar__actions">
-                  <button
-                    type="button"
-                    className="project-sidebar__action"
-                    aria-label={`Edit ${project.name}`}
-                    onClick={() => setEditingProjectId(project.id)}
-                  >
-                    Edit
-                  </button>
-                  {!project.isDefault && (
-                    <button
-                      type="button"
-                      className="project-sidebar__action project-sidebar__action--danger"
-                      aria-label={`Delete ${project.name}`}
-                      onClick={() => setPendingDeleteProject(project)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </li>
-            ),
-          )}
+          {/* Rows are select-only; all project actions (edit + delete) live in the content-area
+              header's "…" menu, not here. */}
+          {projects.map((project) => (
+            <li key={project.id}>
+              <button
+                type="button"
+                className={
+                  project.id === selectedProjectId
+                    ? 'project-sidebar__item project-sidebar__item--selected'
+                    : 'project-sidebar__item'
+                }
+                onClick={() => onSelectProject(project.id)}
+                aria-current={project.id === selectedProjectId ? 'true' : undefined}
+              >
+                {project.name}
+              </button>
+            </li>
+          ))}
         </ul>
       )}
 
@@ -98,13 +72,6 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
           />
         </Dialog>
       )}
-
-      {pendingDeleteProject && (
-        <DeleteProjectDialog
-          project={pendingDeleteProject}
-          onClose={() => setPendingDeleteProject(null)}
-        />
-      )}
     </nav>
   );
 }
@@ -114,11 +81,10 @@ interface EditProjectFormProps {
   onDone: () => void;
 }
 
-/** Small inline form (name + description) shown in place of the sidebar row while editing.
- * Chosen over a modal/separate form to keep editing lightweight and in-context; the plan leaves
- * this choice to the implementer. Field-validation failures render inline; any other failure
- * surfaces in the app-level toast (via `showErrorToast`). */
-function EditProjectForm({ project, onDone }: EditProjectFormProps) {
+/** Name + description edit form. Opened from the content-area header's "…" menu (next to the
+ * project title), rendered inside a `Dialog`. Field-validation failures render inline; any other
+ * failure surfaces in the app-level toast (via `showErrorToast`). */
+export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? '');
@@ -197,15 +163,15 @@ interface DeleteProjectDialogProps {
   onClose: () => void;
 }
 
-/** Confirmation dialog + delete mutation for a single project. Deliberately does not fetch the
- * project's task count for the confirmation message -- `listTasks` would add another
- * loading/error state to coordinate with the dialog's own pending state for comparatively little
- * value in this unit, so the message just names the project and states that its tasks will also
- * be removed.
+/** Confirmation dialog + delete mutation for a single project. Opened from the content-area
+ * header's "…" menu. Deliberately does not fetch the project's task count for the confirmation
+ * message -- `listTasks` would add another loading/error state to coordinate with the dialog's own
+ * pending state for comparatively little value in this unit, so the message just names the project
+ * and states that its tasks will also be removed.
  *
  * On failure the dialog stays open (we don't call `onClose`) so the user can retry in place; the
  * error is surfaced in the app-level toast (via `showErrorToast`). */
-function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
+export function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
