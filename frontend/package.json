@@ -22,6 +22,7 @@
   "//": "ajv is pinned directly to ajv@8 so npm dedupes to it instead of eslint's own ajv@6 -- openapi-zod-client's swagger-parser needs ajv@8, eslint needs ajv@6, and there's no version of either that resolves the conflict on its own.",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteProject, extractErrorMessage, listProjects, updateProject } from '../api/client';
+import { deleteProject, listProjects, updateProject } from '../api/client';
+import { extractFieldErrors, toToastMessage } from '../api/errors';
+import { showErrorToast } from '../toastBus';
 import type { ProjectResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
 import { NewProjectForm } from './NewProjectForm';
@@ -97,7 +99,8 @@ interface EditProjectFormProps {
 
 /** Small inline form (name + description) shown in place of the sidebar row while editing.
  * Chosen over a modal/separate form to keep editing lightweight and in-context; the plan leaves
- * this choice to the implementer. */
+ * this choice to the implementer. Field-validation failures render inline; any other failure
+ * surfaces in the app-level toast (via `showErrorToast`). */
 function EditProjectForm({ project, onDone }: EditProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(project.name);
@@ -113,6 +116,11 @@ function EditProjectForm({ project, onDone }: EditProjectFormProps) {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       onDone();
     },
+    onError: (error: unknown) => {
+      if (!extractFieldErrors(error)) {
+        showErrorToast(toToastMessage(error));
+      }
+    },
   });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -120,9 +128,7 @@ function EditProjectForm({ project, onDone }: EditProjectFormProps) {
     mutation.mutate();
   }
 
-  const errorMessage = mutation.error
-    ? extractErrorMessage(mutation.error, 'Failed to update project.')
-    : null;
+  const errorMessage = extractFieldErrors(mutation.error);
 
   return (
     <form
@@ -178,7 +184,10 @@ interface DeleteProjectDialogProps {
  * project's task count for the confirmation message -- `listTasks` would add another
  * loading/error state to coordinate with the dialog's own pending state for comparatively little
  * value in this unit, so the message just names the project and states that its tasks will also
- * be removed. */
+ * be removed.
+ *
+ * On failure the dialog stays open (we don't call `onClose`) so the user can retry in place; the
+ * error is surfaced in the app-level toast (via `showErrorToast`). */
 function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
   const queryClient = useQueryClient();
 
@@ -188,11 +197,10 @@ function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       onClose();
     },
+    onError: (error: unknown) => {
+      showErrorToast(toToastMessage(error));
+    },
   });
-
-  const errorMessage = mutation.error
-    ? extractErrorMessage(mutation.error, 'Failed to delete project.')
-    : null;
 
   return (
     <ConfirmDialog
@@ -200,7 +208,6 @@ function DeleteProjectDialog({ project, onClose }: DeleteProjectDialogProps) {
       message={`This will permanently delete "${project.name}" and all of its tasks. This cannot be undone.`}
       confirmLabel="Delete"
       isConfirming={mutation.isPending}
-      errorMessage={errorMessage}
       onConfirm={() => mutation.mutate()}
       onCancel={onClose}
     />

@@ -1,6 +1,7 @@
 /**
  * All endpoints live in this single file because this project only has ~10; if it grows,
- * split by resource (`projects.ts`, `tasks.ts`) and keep `request()`/`ApiError` here.
+ * split by resource (`projects.ts`, `tasks.ts`) and keep `request()` here. The error model and
+ * its UI interpreters (`ApiError`, `toToastMessage`, ...) live in `errors.ts`.
  */
 
 import { z } from 'zod';
@@ -15,6 +16,7 @@ import type {
   UpdateTaskRequest,
 } from './generated-schemas';
 import { schemas } from './generated-schemas';
+import { ApiError, ResponseValidationError, type ProblemDetails } from './errors';
 
 const ProjectResponseSchema = schemas.ProjectResponse;
 const TaskResponseSchema = schemas.TaskResponse;
@@ -23,77 +25,6 @@ const TaskListResponseSchema = z.array(TaskResponseSchema);
 
 const BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:5265';
-
-/**
- * RFC 7807 ProblemDetails, see ExceptionHandlingMiddleware.cs.
- *
- * Hand-written, not generated: error bodies are written directly to the response stream by
- * ExceptionHandlingMiddleware after an exception is thrown, not returned from an endpoint's
- * declared return type. Swashbuckle builds the OpenAPI spec by inspecting endpoint return
- * types/ProducesResponseType attributes, so it never sees this path and omits ProblemDetails
- * from generated-schemas.ts entirely. Fixable by adding `.Produces<ProblemDetails>(status)` to
- * every endpoint chain for every status code it can throw, but that's per-endpoint boilerplate
- * for one shared shape -- not worth it here.
- */
-interface ProblemDetails {
-  type?: string;
-  title?: string;
-  status?: number;
-  detail?: string;
-  instance?: string;
-  /** Present on 400 validation errors (ValidationProblemDetails); maps field name -> messages. */
-  errors?: { [field: string]: string[] };
-}
-
-/**
- * Error thrown by `request()` for any non-2xx response. Wraps the parsed `ProblemDetails` body
- * (including the per-field `errors` map on 400 validation failures) when the server returned
- * one, so callers -- e.g. React Query mutations in later units -- can inspect `status` and
- * `problem.errors` to render field-level feedback.
- */
-export class ApiError extends Error {
-  readonly status: number;
-  readonly problem: ProblemDetails | null;
-
-  constructor(status: number, problem: ProblemDetails | null) {
-    super(problem?.detail ?? problem?.title ?? `Request failed with status ${status}`);
-    this.name = 'ApiError';
-    this.status = status;
-    this.problem = problem;
-  }
-}
-
-/**
- * Thrown when the server responded successfully (2xx) but the JSON body didn't match the Zod
- * schema we generated from the backend's OpenAPI spec -- i.e. a client-side validation failure,
- * not a server error. Distinct from `ApiError` so callers (and anyone reading the surfaced
- * message) can tell "the API rejected our request" apart from "we rejected the API's response."
- * Keeps the underlying `ZodError` on `.zodError` for full detail.
- */
-export class ResponseValidationError extends Error {
-  readonly path: string;
-  readonly zodError: z.ZodError;
-
-  constructor(path: string, zodError: z.ZodError) {
-    super(`Response from ${path} failed client-side validation (Zod): ${zodError.message}`);
-    this.name = 'ResponseValidationError';
-    this.path = path;
-    this.zodError = zodError;
-  }
-}
-
-/**
- * Shared error-message extraction for ApiErrors.
- */
-export function extractErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    if (error.problem?.errors) {
-      return Object.values(error.problem.errors).flat().join(' ');
-    }
-    return error.message;
-  }
-  return fallback;
-}
 
 async function request<T>(
   path: string,

@@ -13,31 +13,32 @@
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { QueryClient, QueryClientProvider, QueryErrorResetBoundary } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
+import { toToastMessage } from './api/errors.ts'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
+import { ToastHost } from './components/ToastHost.tsx'
+import { showErrorToast } from './toastBus.ts'
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    // Failed queries throw during render instead of each component hand-rolling isError UI;
-    // caught by the single ErrorBoundary below. Mutations are unaffected (still resolve their
-    // own onError) -- a failed "Add task" should show a message next to the form, not blow away
-    // the page.
-    queries: { throwOnError: true },
-  },
+  queryCache: new QueryCache({
+    // A failed query (initial load or refetch) surfaces as a dismissible toast, leaving the rest
+    // of the app interactive -- rather than throwing to a full-screen error page. Fires once per
+    // errored query, so the components that share the ['projects'] query don't each toast.
+    onError: (error) => showErrorToast(toToastMessage(error)),
+  }),
 })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <QueryErrorResetBoundary>
-        {({ reset }) => (
-          <ErrorBoundary onReset={reset}>
-            <App />
-          </ErrorBoundary>
-        )}
-      </QueryErrorResetBoundary>
+      {/* Last-resort net for render-time crashes (bugs) only -- load failures are handled by the
+          queryCache onError above, not here. */}
+      <ErrorBoundary onReset={() => window.location.reload()}>
+        <App />
+      </ErrorBoundary>
+      <ToastHost />
     </QueryClientProvider>
   </StrictMode>,
 )

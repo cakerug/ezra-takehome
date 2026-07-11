@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
-import { ApiError } from '../api/client';
+import { ApiError, toToastMessage } from '../api/errors';
+import { showErrorToast } from '../toastBus';
 import { TaskList } from './TaskList';
+import { ToastHost } from './ToastHost';
 import { computeReorderedIds } from './taskOrdering';
 
 vi.mock('../api/client', async () => {
@@ -66,9 +68,12 @@ function renderTaskList(projectId = 1) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  // ToastHost is mounted alongside (as in main.tsx) so mutation failures, which now surface via
+  // the app-level toast bus rather than a local Toast, are rendered and assertable here.
   return render(
     <QueryClientProvider client={queryClient}>
       <TaskList projectId={projectId} />
+      <ToastHost />
     </QueryClientProvider>,
   );
 }
@@ -317,7 +322,7 @@ describe('TaskList', () => {
     // rejected, this only proves the *computation* is correct, not the full failure-toast wiring
     // through the component; that final leg (rejection -> onError -> setErrorMessage -> Toast) is
     // exercised end-to-end below via the equivalent move-task failure path, which shares the same
-    // `extractErrorMessage` + `Toast` plumbing inside `TaskList`.
+    // `toToastMessage` + `Toast` plumbing inside `TaskList`.
     const orderedIds = computeReorderedIds([first, second], 1, 2);
     expect(orderedIds).toEqual([2, 1]);
     await expect(reorderTasks(1, { orderedTaskIds: orderedIds! })).rejects.toThrow();
@@ -345,7 +350,7 @@ describe('TaskList', () => {
       expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
     });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to move task.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
     // The task is still shown in this (now-unchanged) project's list.
     expect(screen.getByText('Stubborn task')).toBeInTheDocument();
   });
@@ -385,13 +390,37 @@ describe('TaskList', () => {
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
-  it('shows an error message when the tasks query fails', async () => {
+  it('surfaces a failed tasks query as a toast (not a full-screen page) and shows no rows', async () => {
     mockListTasks.mockRejectedValueOnce(new Error('network down'));
 
-    renderTaskList();
+    // Mirrors main.tsx's wiring: a failed query routes to the app-level toast via the queryCache
+    // onError, leaving the rest of the app rendered rather than throwing to a full-screen page.
+    const queryClient = new QueryClient({
+      queryCache: new QueryCache({ onError: (error) => showErrorToast(toToastMessage(error)) }),
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TaskList projectId={1} />
+        <ToastHost />
+      </QueryClientProvider>,
+    );
 
-    expect(await screen.findByText('Failed to load tasks: network down')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+});
+
+describe('toToastMessage', () => {
+  it('maps a fetch/connectivity failure (TypeError) to an actionable "check your connection" message', () => {
+    expect(toToastMessage(new TypeError('Failed to fetch'))).toBe(
+      'Unable to reach the server. Check your connection and try again.',
+    );
+  });
+
+  it('maps HTTP errors and everything else to a generic message', () => {
+    expect(toToastMessage(new ApiError(500, null))).toBe('Something went wrong. Please try again.');
+    expect(toToastMessage(new Error('boom'))).toBe('Something went wrong. Please try again.');
   });
 });
 

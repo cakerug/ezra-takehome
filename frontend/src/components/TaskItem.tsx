@@ -3,15 +3,9 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  ApiError,
-  completeTask,
-  deleteTask,
-  extractErrorMessage,
-  moveTask,
-  uncompleteTask,
-  updateTask,
-} from '../api/client';
+import { completeTask, deleteTask, moveTask, uncompleteTask, updateTask } from '../api/client';
+import { extractFieldErrors, toToastMessage } from '../api/errors';
+import { showErrorToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -19,7 +13,6 @@ interface TaskItemProps {
   task: TaskResponse;
   /** All projects other than the task's own, for the "move to project" dropdown. */
   otherProjects: ProjectResponse[];
-  onError: (message: string) => void;
   /** Only incomplete tasks participate in drag-to-reorder; completed ones render without a
    * drag handle since they're pinned to the bottom regardless of order. */
   isDraggable: boolean;
@@ -30,10 +23,10 @@ interface TaskItemProps {
  * edit form (mirrors `ProjectSidebar`'s `EditProjectForm` pattern), a "move to project" select,
  * and a delete action backed by the shared `ConfirmDialog`. Every mutation here is pessimistic:
  * on success it invalidates the project's task list so `TaskList` refetches from the server; on
- * failure it reports the error up via `onError` so `TaskList` can show the shared `Toast` while
- * leaving the list exactly as it was before the attempt.
+ * failure the list is left exactly as it was. Failures surface in the app-level toast (via
+ * `showErrorToast`); the delete dialog additionally stays open so the user can retry in place.
  */
-export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItemProps) {
+export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -58,12 +51,7 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
       invalidateTasks();
     },
     onError: (error: unknown) => {
-      onError(
-        extractErrorMessage(
-          error,
-          task.isComplete ? 'Failed to reopen task.' : 'Failed to complete task.',
-        ),
-      );
+      showErrorToast(toToastMessage(error));
     },
   });
 
@@ -80,10 +68,12 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
       queryClient.invalidateQueries({ queryKey: ['tasks', targetProjectId] });
     },
     onError: (error: unknown) => {
-      onError(extractErrorMessage(error, 'Failed to move task.'));
+      showErrorToast(toToastMessage(error));
     },
   });
 
+  // On failure the dialog stays open (we don't clear isConfirmingDelete) so the user can retry in
+  // place; the error itself is surfaced in the app-level toast.
   const deleteMutation = useMutation({
     mutationFn: () => deleteTask(task.id),
     onSuccess: () => {
@@ -91,8 +81,7 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
       setIsConfirmingDelete(false);
     },
     onError: (error: unknown) => {
-      onError(extractErrorMessage(error, 'Failed to delete task.'));
-      setIsConfirmingDelete(false);
+      showErrorToast(toToastMessage(error));
     },
   });
 
@@ -106,7 +95,7 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
   if (isEditing) {
     return (
       <li ref={setNodeRef} style={style} className="task-item">
-        <EditTaskForm task={task} onDone={() => setIsEditing(false)} onError={onError} />
+        <EditTaskForm task={task} onDone={() => setIsEditing(false)} />
       </li>
     );
   }
@@ -204,16 +193,13 @@ export function TaskItem({ task, otherProjects, onError, isDraggable }: TaskItem
 interface EditTaskFormProps {
   task: TaskResponse;
   onDone: () => void;
-  onError: (message: string) => void;
 }
 
 /** Inline edit form (title + description) shown in place of the task row while editing, mirroring
- * `ProjectSidebar`'s `EditProjectForm`. Validation failures (an `ApiError` carrying a non-empty
- * `problem.errors` map) render inline in this form, next to the fields they describe, rather than
- * routed through `onError`/`Toast` -- mirroring `EditProjectForm`'s existing inline-error pattern.
- * Any other failure (network error, 500, or an `ApiError` with no `errors` map) still goes through
- * `onError` so `TaskList` can show it in the shared `Toast`, exactly as before. */
-function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
+ * `ProjectSidebar`'s `EditProjectForm`. Field-validation failures render inline in this form, next
+ * to the fields they describe; any other failure (500, connectivity) surfaces in the app-level
+ * toast (via `showErrorToast`). */
+function EditTaskForm({ task, onDone }: EditTaskFormProps) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
@@ -229,9 +215,8 @@ function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
       onDone();
     },
     onError: (error: unknown) => {
-      const isValidationError = error instanceof ApiError && !!error.problem?.errors;
-      if (!isValidationError) {
-        onError(extractErrorMessage(error, 'Failed to update task.'));
+      if (!extractFieldErrors(error)) {
+        showErrorToast(toToastMessage(error));
       }
     },
   });
@@ -241,10 +226,7 @@ function EditTaskForm({ task, onDone, onError }: EditTaskFormProps) {
     mutation.mutate();
   }
 
-  const inlineErrorMessage =
-    mutation.error instanceof ApiError && mutation.error.problem?.errors
-      ? Object.values(mutation.error.problem.errors).flat().join(' ')
-      : null;
+  const inlineErrorMessage = extractFieldErrors(mutation.error);
 
   return (
     <form className="edit-task-form" onSubmit={handleSubmit} aria-label={`Edit ${task.title}`}>

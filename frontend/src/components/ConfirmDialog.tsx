@@ -12,7 +12,9 @@ import { useEffect, useRef } from 'react';
  * confirmation. A full focus trap is intentionally out of scope for this MVP (noted in the
  * README's trade-offs).
  *
- * Intended to be reused across entity types (project and task deletion) -- keep this agnostic.
+ * Purely presentational: a failed confirm action is surfaced by the caller (via the shared
+ * `Toast`), and the caller keeps the dialog open for retry by not unmounting it. Intended to be
+ * reused across entity types (project and task deletion) -- keep this agnostic.
  */
 export interface ConfirmDialogProps {
   title: string;
@@ -21,9 +23,6 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   /** Disables both actions and can be used to show a pending state while a mutation is in flight. */
   isConfirming?: boolean;
-  /** Error from a failed confirm action, shown inside the dialog (above the overlay) so it stays
-   *  visible instead of rendering behind the modal scrim. */
-  errorMessage?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -34,7 +33,6 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   isConfirming = false,
-  errorMessage = null,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -70,11 +68,6 @@ export function ConfirmDialog({
         <p id="confirm-dialog-message" className="confirm-dialog__message">
           {message}
         </p>
-        {errorMessage && (
-          <p className="confirm-dialog__error" role="alert">
-            {errorMessage}
-          </p>
-        )}
         <div className="confirm-dialog__actions">
           <button
             type="button"

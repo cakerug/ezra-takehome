@@ -13,11 +13,9 @@ interface ErrorBoundaryState {
 }
 
 /**
- * Catches errors thrown during render by any descendant -- in this app, primarily failed queries
- * (see `throwOnError: true` in main.tsx) -- and renders one fallback instead of letting each
- * failing component render its own error UI. Mounted once at the app root (main.tsx) so that when
- * the backend is unreachable, the sidebar and content area (which both query it) collapse into a
- * single error page instead of two separate ones.
+ * Last-resort net for errors thrown during render by any descendant -- i.e. genuine render-time
+ * bugs, not load failures (those surface as a toast via the queryCache onError in main.tsx). Shows
+ * one fallback page instead of a blank white screen. Mounted once at the app root (main.tsx).
  *
  * Must be a class component: React has no hook equivalent for `componentDidCatch` /
  * `getDerivedStateFromError`.

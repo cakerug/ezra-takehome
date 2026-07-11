@@ -3,8 +3,9 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProjectResponse } from '../api/generated-schemas';
-import { ApiError } from '../api/client';
+import { ApiError } from '../api/errors';
 import { ProjectSidebar } from './ProjectSidebar';
+import { ToastHost } from './ToastHost';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
@@ -36,9 +37,12 @@ function renderSidebar() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  // ToastHost is mounted alongside (as in main.tsx) so mutation failures, which now surface via
+  // the app-level toast bus rather than a local Toast, are rendered and assertable here.
   return render(
     <QueryClientProvider client={queryClient}>
       <ProjectSidebar selectedProjectId={null} onSelectProject={() => {}} />
+      <ToastHost />
     </QueryClientProvider>,
   );
 }
@@ -242,7 +246,7 @@ describe('ProjectSidebar', () => {
     });
   });
 
-  it('surfaces a failed delete inside the dialog (not behind the overlay) and keeps it open', async () => {
+  it('surfaces a failed delete in a Toast and keeps the dialog open for retry', async () => {
     const user = userEvent.setup();
     mockListProjects.mockResolvedValue([inbox, work]);
     mockDeleteProject.mockRejectedValueOnce(
@@ -265,11 +269,11 @@ describe('ProjectSidebar', () => {
       expect(mockDeleteProject).toHaveBeenCalledWith(2);
     });
 
-    // The failure message must render INSIDE the still-open dialog (above the overlay), so it is
-    // not a silent failure hidden behind the modal scrim.
-    const dialogAfter = await screen.findByRole('alertdialog');
-    expect(
-      within(dialogAfter).getByText('An unexpected error occurred. Please try again later.'),
-    ).toBeInTheDocument();
+    // The failure surfaces in the shared Toast with a generic message (the server's raw 500
+    // detail is not shown), and the dialog stays open so the user can retry in place.
+    const toast = await screen.findByRole('alert');
+    expect(toast).toHaveTextContent('Something went wrong. Please try again.');
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled();
   });
 });

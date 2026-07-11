@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiError, createTask, extractErrorMessage } from '../api/client';
+import { createTask } from '../api/client';
+import { extractFieldErrors, toToastMessage } from '../api/errors';
+import { showErrorToast } from '../toastBus';
 
 interface NewTaskFormProps {
   projectId: number;
-  onError: (message: string) => void;
 }
 
 /**
@@ -14,14 +15,11 @@ interface NewTaskFormProps {
  * project's task list query so `TaskList` refetches from the server -- per the plan's
  * pessimistic-update rule, the new task only appears once the server has confirmed it.
  *
- * Error handling distinguishes two shapes, mirroring `NewProjectForm`'s existing inline-error
- * pattern: a server-side field validation failure (`ApiError` with a non-empty `problem.errors`
- * map) is rendered inline in this form, next to the fields it describes, rather than routed
- * through the generic `Toast` -- a "title too long" message belongs next to the title field, not
- * in a banner. Any other failure (network error, 500, or an `ApiError` with no `errors` map) is
- * reported up via `onError` so `TaskList` can surface it in the shared `Toast`, exactly as before.
+ * Field-validation failures (`ApiError` with a `problem.errors` map) render inline in this form,
+ * next to the fields they describe -- a "title too long" message belongs next to the title field.
+ * Any other failure (network error, 500) surfaces in the app-level toast (via `showErrorToast`).
  */
-export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
+export function NewTaskForm({ projectId }: NewTaskFormProps) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -38,9 +36,9 @@ export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
       setDescription('');
     },
     onError: (error: unknown) => {
-      const isValidationError = error instanceof ApiError && !!error.problem?.errors;
-      if (!isValidationError) {
-        onError(extractErrorMessage(error, 'Failed to create task.'));
+      // Field-validation errors render inline (below); anything else goes to the app-level toast.
+      if (!extractFieldErrors(error)) {
+        showErrorToast(toToastMessage(error));
       }
     },
   });
@@ -50,10 +48,7 @@ export function NewTaskForm({ projectId, onError }: NewTaskFormProps) {
     mutation.mutate();
   }
 
-  const inlineErrorMessage =
-    mutation.error instanceof ApiError && mutation.error.problem?.errors
-      ? Object.values(mutation.error.problem.errors).flat().join(' ')
-      : null;
+  const inlineErrorMessage = extractFieldErrors(mutation.error);
 
   return (
     <form className="new-task-form" onSubmit={handleSubmit}>

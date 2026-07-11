@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -14,10 +13,11 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { extractErrorMessage, listProjects, listTasks, reorderTasks } from '../api/client';
+import { listProjects, listTasks, reorderTasks } from '../api/client';
+import { toToastMessage } from '../api/errors';
+import { showErrorToast } from '../toastBus';
 import { NewTaskForm } from './NewTaskForm';
 import { TaskItem } from './TaskItem';
-import { Toast } from './Toast';
 import { sortTasks, computeReorderedIds } from './taskOrdering';
 
 interface TaskListProps {
@@ -25,19 +25,19 @@ interface TaskListProps {
 }
 
 /**
- * Renders the selected project's tasks -- creation form, drag-to-reorder list, and the shared
- * error `Toast`. Reordering is scoped to the current project only (drag-and-drop across projects
- * is out of scope; moving projects is done via each `TaskItem`'s dropdown, per F1).
+ * Renders the selected project's tasks -- creation form and drag-to-reorder list. Reordering is
+ * scoped to the current project only (drag-and-drop across projects is out of scope; moving
+ * projects is done via each `TaskItem`'s dropdown, per F1).
  *
  * Pessimistic by design: dragging computes a new local order for immediate visual feedback during
  * the gesture, but on drop it sends the full reordered id list to `reorderTasks` and adopts the
  * order only from the server's authoritative response (written into the cache on success) -- if
  * the mutation fails, the query cache (and therefore the rendered list) is untouched, so the list
- * reverts to its last-known-good order automatically.
+ * reverts to its last-known-good order automatically, and the failure is surfaced by the app-level
+ * toast (see `showErrorToast`).
  */
 export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
@@ -67,7 +67,7 @@ export function TaskList({ projectId }: TaskListProps) {
       queryClient.setQueryData(['tasks', projectId], updatedTasks);
     },
     onError: (error: unknown) => {
-      setErrorMessage(extractErrorMessage(error, 'Failed to reorder tasks.'));
+      showErrorToast(toToastMessage(error));
     },
   });
 
@@ -107,7 +107,6 @@ export function TaskList({ projectId }: TaskListProps) {
                   key={task.id}
                   task={task}
                   otherProjects={otherProjects}
-                  onError={setErrorMessage}
                   isDraggable={!task.isComplete}
                 />
               ))}
@@ -116,11 +115,7 @@ export function TaskList({ projectId }: TaskListProps) {
         </DndContext>
       )}
 
-      <NewTaskForm projectId={projectId} onError={setErrorMessage} />
-
-      {errorMessage && (
-        <Toast message={errorMessage} onDismiss={() => setErrorMessage(null)} />
-      )}
+      <NewTaskForm projectId={projectId} />
     </div>
   );
 }
