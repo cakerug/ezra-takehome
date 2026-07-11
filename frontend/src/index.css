@@ -139,6 +139,21 @@ button:disabled {
   padding: 24px;
 }
 
+.content__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Match the task list width so the "…" edit menu lands at the same right edge as the rows. */
+  max-width: 640px;
+  margin-bottom: 4px;
+}
+
+.content__header .content__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
 .content__title {
   margin: 0 0 4px;
   font-size: 22px;
@@ -198,6 +213,9 @@ button:disabled {
   background: transparent;
   color: var(--text);
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-sidebar__item:hover {
@@ -214,45 +232,6 @@ button:disabled {
    stays white -- effectively invisible. */
 .project-sidebar__item--selected:hover {
   background: var(--accent);
-}
-
-.project-sidebar__row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.project-sidebar__row .project-sidebar__item {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-sidebar__actions {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.project-sidebar__action {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  padding: 4px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.project-sidebar__action:hover {
-  background: var(--border);
-  color: var(--text);
-}
-
-.project-sidebar__action--danger:hover {
-  color: var(--danger);
 }
 
 .new-project-form,
@@ -302,8 +281,7 @@ button:disabled {
 
 .new-project-form__error,
 .edit-project-form__error,
-.new-task-form__error,
-.edit-task-form__error {
+.new-task-form__error {
   color: var(--danger);
   font-size: 13px;
   margin: 0;
@@ -414,6 +392,7 @@ button:disabled {
 }
 
 .task-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
@@ -437,17 +416,49 @@ button:disabled {
   box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
 }
 
+/* Pointer dragging works from anywhere on the row (see TaskItem.tsx), so the grab cursor lives on
+   the row too -- buttons/inputs nested in the row set their own `cursor` and win via specificity,
+   so this doesn't leak onto them. */
+.task-item--draggable {
+  cursor: grab;
+}
+
+.task-item--draggable:active {
+  cursor: grabbing;
+}
+
 .task-item__drag-handle {
+  /* Sits just outside the card's left border rather than inside its padding, so it reads as a
+     handle on the row rather than another control competing for space inside the card. Still a
+     real button (not purely decorative): it's the sole activator for *keyboard*-based dragging,
+     even though pointer dragging works from anywhere on the row. */
+  position: absolute;
+  left: -16px;
+  top: 10px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   cursor: grab;
-  padding: 2px 4px;
-  line-height: 1.5;
+  padding: 0;
+  line-height: 1.2;
+  /* Hidden until the row is hovered or focused, to keep the list uncluttered. */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.task-item:hover .task-item__drag-handle,
+.task-item:focus-within .task-item__drag-handle {
+  opacity: 1;
 }
 
 .task-item__drag-handle:active {
   cursor: grabbing;
+}
+
+/* The floating drag clone isn't hovered, but it's literally the thing being dragged -- keep its
+   handle visible. */
+.task-item--overlay .task-item__drag-handle {
+  opacity: 1;
 }
 
 .task-item__checkbox {
@@ -457,6 +468,16 @@ button:disabled {
 .task-item__body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .task-item__title {
@@ -481,50 +502,26 @@ button:disabled {
   text-decoration: line-through;
 }
 
-.task-item__move {
-  font: inherit;
-  font-size: 13px;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  background: var(--bg);
+/* Overflow "…" menu (move-to-project + delete): hidden until the row is hovered/focused or its
+   menu is open. */
+.task-item__menu {
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
-.task-item__action {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  padding: 4px 6px;
-  border-radius: 4px;
-  cursor: pointer;
+.task-item:hover .task-item__menu,
+.task-item:focus-within .task-item__menu,
+.task-item__menu.action-menu--open {
+  opacity: 1;
 }
 
-.task-item__action:hover {
-  background: var(--border);
-  color: var(--text);
-}
-
-.task-item__action--danger:hover {
-  color: var(--danger);
-}
-
-.new-task-form,
-.edit-task-form {
+.new-task-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
-}
-
-.edit-task-form {
-  flex: 1;
-  margin-top: 0;
-  padding: 4px 0;
-  border-top: none;
 }
 
 .new-task-form__actions {
@@ -538,8 +535,7 @@ button:disabled {
   width: 100%;
 }
 
-.new-task-form__field,
-.edit-task-form__field {
+.new-task-form__field {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -548,21 +544,13 @@ button:disabled {
 }
 
 .new-task-form__field input,
-.new-task-form__field textarea,
-.edit-task-form__field input,
-.edit-task-form__field textarea {
+.new-task-form__field textarea {
   font: inherit;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
   resize: vertical;
-}
-
-.edit-task-form__actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
 }
 
 .toast {
@@ -595,4 +583,169 @@ button:disabled {
   line-height: 1;
   cursor: pointer;
   padding: 0 2px;
+}
+
+/* --- Overflow "…" action menu (shared by task rows, project rows, and the content header) --- */
+.action-menu {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.action-menu__trigger {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.action-menu__trigger:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.action-menu__popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  z-index: 50;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+}
+
+.action-menu__item {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.action-menu__item:hover {
+  background: var(--border);
+}
+
+.action-menu__item--danger {
+  color: var(--danger);
+}
+
+.action-menu__heading {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.action-menu__separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}
+
+/* --- Task detail view (opened by clicking a task row) --- */
+.task-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-detail__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.task-detail__checkbox {
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+.task-detail__header .editable-field__display,
+.task-detail__header .editable-field__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.task-detail__error {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Click-to-edit fields: the read-only display and the input share the same box metrics (full
+   width, same border/padding) so swapping between them doesn't shift the layout, and the display
+   state reads as an editable field on its own -- not just on hover -- via a visible border. */
+.editable-field__display,
+.editable-field__input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.editable-field__display {
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: text;
+  overflow-wrap: anywhere;
+}
+
+.editable-field__display:hover {
+  border-color: var(--accent);
+}
+
+.editable-field__display--empty {
+  color: var(--text-muted);
+}
+
+.editable-field__input {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+}
+
+.task-detail__title.editable-field__display,
+.task-detail__title.editable-field__input {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.task-detail__description.editable-field__display,
+.task-detail__description.editable-field__input {
+  font-size: 14px;
+}
+
+.task-detail__title--complete.editable-field__display,
+.task-detail__description--complete.editable-field__display {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
