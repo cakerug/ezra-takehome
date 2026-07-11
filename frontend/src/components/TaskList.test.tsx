@@ -137,9 +137,7 @@ describe('TaskList', () => {
 
     renderTaskList();
 
-    await screen.findByText('No tasks yet.');
-
-    await user.click(screen.getByRole('button', { name: '+ Add task' }));
+    await user.click(await screen.findByRole('button', { name: '+ Add task' }));
     // Type the title and press Enter (no explicit button click) -- the form should submit.
     await user.type(screen.getByLabelText('Title'), 'Quick task{Enter}');
 
@@ -163,9 +161,7 @@ describe('TaskList', () => {
 
     renderTaskList();
 
-    await screen.findByText('No tasks yet.');
-
-    await user.click(screen.getByRole('button', { name: '+ Add task' }));
+    await user.click(await screen.findByRole('button', { name: '+ Add task' }));
     await user.type(screen.getByLabelText('Title'), 'A'.repeat(201));
     await user.click(screen.getByRole('button', { name: 'Add task' }));
 
@@ -413,12 +409,12 @@ describe('TaskList', () => {
     });
   });
 
-  it('shows the empty-state message instead of a blank list when a project has no tasks', async () => {
+  it('shows just the add-task button instead of a blank list when a project has no tasks', async () => {
     mockListTasks.mockResolvedValueOnce([]);
 
     renderTaskList();
 
-    expect(await screen.findByText('No tasks yet.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '+ Add task' })).toBeInTheDocument();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 

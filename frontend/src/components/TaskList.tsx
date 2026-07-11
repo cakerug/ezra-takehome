@@ -102,9 +102,7 @@ export function TaskList({ projectId }: TaskListProps) {
 
   return (
     <div className="task-list">
-      {sorted.length === 0 ? (
-        <p className="task-list__status">No tasks yet.</p>
-      ) : (
+      {sorted.length > 0 && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
