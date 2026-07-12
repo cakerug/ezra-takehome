@@ -27,9 +27,9 @@ interface TaskDetailDialogProps {
  * committed together by a single "Save" button via the `updateTask` mutation. Because `updateTask`
  * replaces the whole task, both fields are always sent together.
  *
- * Closing while the buffer differs from the task (Close button, backdrop, or Escape) prompts a
- * discard confirmation; a clean buffer closes immediately. Field-validation failures render inline;
- * anything else surfaces in the app-level toast, matching the rest of the app.
+ * Closing while the buffer differs from the task (the top-left × button, backdrop, or Escape)
+ * prompts a discard confirmation; a clean buffer closes immediately. Field-validation failures
+ * render inline; anything else surfaces in the app-level toast, matching the rest of the app.
  *
  * Completed tasks are locked for editing (mirroring the backend's 403 guard): the fields become
  * read-only and Save is hidden, but the complete/uncomplete checkbox still works so the user can
@@ -145,6 +145,14 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
   return (
     <Dialog ariaLabel={`Task: ${task.title}`} onClose={requestClose}>
       <div className="task-detail">
+        <button
+          type="button"
+          className="task-detail__close"
+          onClick={requestClose}
+          aria-label="Close"
+        >
+          ×
+        </button>
         <ActionMenu
           buttonLabel={`More actions for "${task.title}"`}
           items={menuItems}
@@ -195,11 +203,8 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
             </p>
           )}
           {inlineError && <p className="task-detail__error">{inlineError}</p>}
-          <div className="task-detail__actions">
-            <button type="button" className="btn btn--secondary" onClick={requestClose}>
-              Close
-            </button>
-            {!isLocked && (
+          {!isLocked && (
+            <div className="task-detail__actions">
               <button
                 type="button"
                 className="btn btn--primary"
@@ -208,8 +213,8 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
               >
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -12,10 +12,11 @@ interface NewProjectFormProps {
 }
 
 /**
- * "New project" form (name + description). Posts via a React Query mutation; on success,
- * invalidates the `['projects']` query so `ProjectSidebar` refetches from the server -- per the
- * plan's pessimistic-update rule, the new project only appears once the server has confirmed it,
- * not optimistically.
+ * "New project" form (name only -- description isn't collected at creation time; it can still be
+ * set later via `EditProjectForm`). Posts via a React Query mutation; on success, invalidates the
+ * `['projects']` query so `ProjectSidebar` refetches from the server -- per the plan's
+ * pessimistic-update rule, the new project only appears once the server has confirmed it, not
+ * optimistically.
  *
  * Field-validation failures render inline below; any other failure surfaces in the app-level
  * toast (via `showErrorToast`).
@@ -23,18 +24,12 @@ interface NewProjectFormProps {
 export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createProject({
-        name,
-        ...(description.trim() ? { description } : {}),
-      }),
+    mutationFn: () => createProject({ name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setName('');
-      setDescription('');
       onCreated?.();
     },
     onError: (error: unknown) => {
@@ -60,14 +55,6 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-        />
-      </label>
-      <label className="new-project-form__field">
-        <span>Description</span>
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={2}
         />
       </label>
       {errorMessage && <p className="new-project-form__error">{errorMessage}</p>}

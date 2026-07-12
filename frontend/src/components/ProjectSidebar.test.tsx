@@ -108,14 +108,10 @@ describe('ProjectSidebar', () => {
     const dialog = await screen.findByRole('dialog', { name: 'New project' });
 
     await user.type(within(dialog).getByLabelText('Name'), 'Groceries');
-    await user.type(within(dialog).getByLabelText('Description'), 'Buy milk');
     await user.click(within(dialog).getByRole('button', { name: 'Add project' }));
 
     await waitFor(() => {
-      expect(mockCreateProject).toHaveBeenCalledWith({
-        name: 'Groceries',
-        description: 'Buy milk',
-      });
+      expect(mockCreateProject).toHaveBeenCalledWith({ name: 'Groceries' });
     });
 
     expect(await screen.findByText('Groceries')).toBeInTheDocument();
