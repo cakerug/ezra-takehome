@@ -223,6 +223,30 @@ button:disabled {
   gap: 2px;
 }
 
+/* Positioning context for the absolutely-placed drag handle, which sits in the sidebar padding to
+   the left of the row's background. */
+.project-sidebar__row {
+  position: relative;
+}
+
+.project-sidebar__drag-handle {
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  color: var(--text-muted);
+  line-height: 1.2;
+  pointer-events: none;
+  /* Hidden until the row is hovered or focused, to keep the list uncluttered (mirrors the task
+     row's handle). */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.project-sidebar__row:hover .project-sidebar__drag-handle,
+.project-sidebar__row:focus-within .project-sidebar__drag-handle {
+  opacity: 1;
+}
+
 .project-sidebar__item {
   display: block;
   width: 100%;

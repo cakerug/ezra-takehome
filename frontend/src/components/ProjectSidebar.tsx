@@ -66,7 +66,13 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
     .join(' ');
 
   return (
-    <li ref={setNodeRef} style={style}>
+    <li ref={setNodeRef} style={style} className="project-sidebar__row">
+      {/* Purely a visual affordance shown on row hover -- the whole row is already the drag surface
+          (pointer + keyboard, via the button below), so this is hidden from assistive tech and sits
+          in the sidebar padding, outside the row's hover/selected background. */}
+      <span className="project-sidebar__drag-handle" aria-hidden="true">
+        ⠿
+      </span>
       <button
         type="button"
         className={className}
