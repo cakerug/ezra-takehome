@@ -60,7 +60,7 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
       <TaskList projectId={selectedProject.id} />
 
       {isEditOpen && (
-        <Dialog title="Edit project" onClose={() => setIsEditOpen(false)}>
+        <Dialog onClose={() => setIsEditOpen(false)}>
           <EditProjectForm project={selectedProject} onDone={() => setIsEditOpen(false)} />
         </Dialog>
       )}

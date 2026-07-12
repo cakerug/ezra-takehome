@@ -263,7 +263,6 @@ export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
       aria-label={`Edit ${project.name}`}
     >
       <label className="edit-project-form__field">
-        <span>Name</span>
         <input
           type="text"
           value={name}

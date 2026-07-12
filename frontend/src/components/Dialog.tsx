@@ -39,6 +39,12 @@ export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
   // this from inside a draggable row that has its own pointer/keyboard listeners for dnd-kit --
   // without a portal, keystrokes typed into this dialog's fields would bubble through that row's
   // DOM subtree and could be intercepted by those listeners (e.g. Space being read as "pick up").
+  //
+  // The portal only reparents the *DOM*, though -- React synthetic events still bubble through the
+  // React component tree, so a pointerdown inside the dialog (e.g. dragging the textarea's resize
+  // handle) would otherwise reach the ancestor row's dnd-kit `onPointerDown` and start dragging the
+  // row behind the dialog. Stopping pointer/keydown propagation at the dialog root keeps all input
+  // contained to the modal.
   return createPortal(
     <div className="dialog__overlay" role="presentation" onClick={onClose}>
       <div
@@ -50,6 +56,8 @@ export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
         tabIndex={-1}
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
       >
         {title && (
           <h2 id="dialog-title" className="dialog__title">
