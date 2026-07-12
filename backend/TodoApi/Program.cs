@@ -35,9 +35,23 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithOrigins(frontendOrigins)
-            .WithMethods("GET", "POST", "PUT", "DELETE")
+        policy.WithMethods("GET", "POST", "PUT", "DELETE")
             .WithHeaders("Content-Type", CorrelationIdMiddleware.HeaderName);
+
+        // In development the SPA's port is not fixed — dev tooling may assign a free
+        // port (e.g. Vite's autoPort) that differs per run — so allow any loopback
+        // origin instead of a baked-in list. No credentials/cookies are involved, so
+        // this is safe. Production stays locked to the configured allow-list.
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(origin =>
+                Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                && (uri.Host == "localhost" || uri.Host == "127.0.0.1"));
+        }
+        else
+        {
+            policy.WithOrigins(frontendOrigins);
+        }
     });
 });
 
