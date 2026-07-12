@@ -697,26 +697,31 @@ button:disabled {
 
 /* --- Task detail view (opened by clicking a task row) --- */
 .task-detail {
-  position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 16px;
-  /* Leaves room so the top-left close button and top-right "…" menu (both absolutely positioned
-     below) don't sit on top of the title input. */
-  padding: 0 28px;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Top header row: × on the left, "…" menu on the right. Pulled out to the dialog's edges (negating
+   its 20px padding) so the grey bottom line spans the full width, reading as a distinct header bar
+   above the title field. A small top padding keeps it tight to the top edge. */
+.task-detail__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -20px -20px 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Top-left close button, replacing the old footer "Close" button. */
 .task-detail__close {
-  position: absolute;
-  top: 0;
-  left: 0;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
   cursor: pointer;
 }
@@ -724,14 +729,6 @@ button:disabled {
 .task-detail__close:hover {
   background: var(--border);
   color: var(--text);
-}
-
-/* Top-right "…" overflow menu (move-to-project + delete). Unlike `TaskItem`'s hover-reveal menu,
-   this one is always visible -- there's no "row" to hover in a dialog. */
-.task-detail__menu {
-  position: absolute;
-  top: 0;
-  right: 0;
 }
 
 /* Left column: title/description editing buffer + Save action. */
@@ -745,14 +742,17 @@ button:disabled {
 
 .task-detail__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 
 .task-detail__checkbox {
   flex-shrink: 0;
   width: 16px;
-  margin-top: 10px;
+  height: 16px;
+  /* Clear the native checkbox's default margins so its footprint is exactly 16px; the description
+     below offsets by this width + the header gap (24px) to line up with the title's left edge. */
+  margin: 0;
 }
 
 .task-detail__title-input,
@@ -794,12 +794,6 @@ button:disabled {
 .task-detail__description-input--complete {
   text-decoration: line-through;
   color: var(--text-muted);
-}
-
-.task-detail__hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 13px;
 }
 
 .task-detail__actions {
