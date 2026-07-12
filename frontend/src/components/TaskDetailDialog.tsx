@@ -145,19 +145,21 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
   return (
     <Dialog ariaLabel={`Task: ${task.title}`} onClose={requestClose}>
       <div className="task-detail">
-        <button
-          type="button"
-          className="task-detail__close"
-          onClick={requestClose}
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <ActionMenu
-          buttonLabel={`More actions for "${task.title}"`}
-          items={menuItems}
-          className="task-detail__menu"
-        />
+        <div className="task-detail__topbar">
+          <button
+            type="button"
+            className="task-detail__close"
+            onClick={requestClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <ActionMenu
+            buttonLabel={`More actions for "${task.title}"`}
+            items={menuItems}
+            className="task-detail__menu"
+          />
+        </div>
         <div className="task-detail__main">
           <div className="task-detail__header">
             <input
@@ -197,11 +199,6 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
             placeholder="Add a description…"
             onChange={(event) => setDescription(event.target.value)}
           />
-          {isLocked && (
-            <p className="task-detail__hint">
-              Completed tasks are locked. Mark it incomplete to edit.
-            </p>
-          )}
           {inlineError && <p className="task-detail__error">{inlineError}</p>}
           {!isLocked && (
             <div className="task-detail__actions">
