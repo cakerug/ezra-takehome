@@ -10,6 +10,7 @@ import type {
   CreateTaskRequest,
   MoveTaskRequest,
   ProjectResponse,
+  ReorderProjectsRequest,
   ReorderTasksRequest,
   TaskResponse,
   UpdateProjectRequest,
@@ -101,6 +102,13 @@ export function updateProject(
 
 export function deleteProject(id: number): Promise<void> {
   return request(`/api/projects/${id}`, undefined, { method: 'DELETE' });
+}
+
+export function reorderProjects(data: ReorderProjectsRequest): Promise<ProjectResponse[]> {
+  return request('/api/projects/reorder', ProjectListResponseSchema, {
+    method: 'PUT',
+    ...toJsonBody(data),
+  });
 }
 
 // ---- Tasks ----

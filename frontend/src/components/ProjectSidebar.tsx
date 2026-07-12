@@ -1,7 +1,24 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteProject, listProjects, updateProject } from '../api/client';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { deleteProject, listProjects, reorderProjects, updateProject } from '../api/client';
 import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse } from '../api/generated-schemas';
@@ -9,9 +26,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { Dialog } from './Dialog';
 import { NewProjectForm } from './NewProjectForm';
 
-/** `null` means no project is currently selected. The seeded default project (`isDefault: true`)
- * is named "Inbox" by the backend and returned from `/api/projects` like any other project, so
- * it needs no special-casing here -- selecting it just selects that project's id. */
+/** `null` means no project is currently selected. There is no longer a special "default" project:
+ * every project (including the seeded "Inbox") is returned from `/api/projects` like any other, so
+ * selecting one just selects that project's id. */
 export type SelectedProjectId = number | null;
 
 interface ProjectSidebarProps {
@@ -19,13 +36,105 @@ interface ProjectSidebarProps {
   onSelectProject: (projectId: SelectedProjectId) => void;
 }
 
+interface ProjectRowProps {
+  project: ProjectResponse;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+/** A single draggable sidebar row. The whole row is both the click target (selects the project)
+ * and the pointer drag surface; a small movement threshold on the `PointerSensor` (see
+ * `ProjectSidebar`) lets a plain click still select while a deliberate drag reorders. Keyboard
+ * dragging is activated from the same button via `useSortable`'s attributes/listeners. Mirrors
+ * `TaskItem`'s sortable pattern, minus the separate drag handle (the row has no nested inputs to
+ * protect from a row-wide keyboard listener). */
+function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: project.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const className = [
+    'project-sidebar__item',
+    isSelected && 'project-sidebar__item--selected',
+    isDragging && 'project-sidebar__item--dragging',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <li ref={setNodeRef} style={style}>
+      <button
+        type="button"
+        className={className}
+        onClick={onSelect}
+        aria-current={isSelected ? 'true' : undefined}
+        {...attributes}
+        {...listeners}
+      >
+        {project.name}
+      </button>
+    </li>
+  );
+}
+
+/**
+ * Project list sidebar with drag-to-reorder. Reordering is pessimistic (mirrors `TaskList`): on
+ * drop it sends the full reordered id list to `reorderProjects` and adopts the order only from the
+ * server's authoritative response (written into the `['projects']` cache on success). If the
+ * mutation fails, the cache is untouched so the list reverts to its last-known-good order, and the
+ * failure is surfaced by the app-level toast.
+ */
 export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
+  const queryClient = useQueryClient();
+
   const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  const sensors = useSensors(
+    // The whole row is the drag surface and is also a click-to-select button, so a small movement
+    // threshold lets a plain click still select -- only a deliberate drag (pointer moves ≥8px
+    // before release) is treated as a reorder. Matches `TaskList`'s sensor config.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const reorderMutation = useMutation({
+    mutationFn: (orderedProjectIds: number[]) => reorderProjects({ orderedProjectIds }),
+    onSuccess: (updatedProjects) => {
+      // Write the server-confirmed order straight into the cache instead of invalidating, to keep
+      // it fully pessimistic while avoiding an extra refetch round trip (during which the list
+      // would briefly snap back to the pre-drag order and read as a failed drag).
+      queryClient.setQueryData(['projects'], updatedProjects);
+    },
+    onError: (error: unknown) => {
+      showErrorToast(toToastMessage(error));
+    },
+  });
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!projects || !over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = projects.findIndex((project) => project.id === active.id);
+    const newIndex = projects.findIndex((project) => project.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    const orderedIds = arrayMove(projects, oldIndex, newIndex).map((project) => project.id);
+    reorderMutation.mutate(orderedIds);
+  }
 
   return (
     <nav aria-label="Projects" className="project-sidebar">
@@ -34,26 +143,29 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
       {isLoading && <p className="project-sidebar__status">Loading projects…</p>}
 
       {projects && (
-        <ul className="project-sidebar__list">
-          {/* Rows are select-only; all project actions (edit + delete) live in the content-area
-              header's "…" menu, not here. */}
-          {projects.map((project) => (
-            <li key={project.id}>
-              <button
-                type="button"
-                className={
-                  project.id === selectedProjectId
-                    ? 'project-sidebar__item project-sidebar__item--selected'
-                    : 'project-sidebar__item'
-                }
-                onClick={() => onSelectProject(project.id)}
-                aria-current={project.id === selectedProjectId ? 'true' : undefined}
-              >
-                {project.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={projects.map((project) => project.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="project-sidebar__list">
+              {/* Rows are select + drag-to-reorder; all project actions (edit + delete) live in
+                  the content-area header's "…" menu, not here. */}
+              {projects.map((project) => (
+                <ProjectRow
+                  key={project.id}
+                  project={project}
+                  isSelected={project.id === selectedProjectId}
+                  onSelect={() => onSelectProject(project.id)}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       <button

@@ -28,6 +28,12 @@ public static class ProjectEndpoints
             return Results.Created($"/api/projects/{created.Id}", created);
         }).Produces<ProjectResponse>(StatusCodes.Status201Created);
 
+        group.MapPut("/reorder", async (AppDbContext db, ReorderProjectsRequest request) =>
+        {
+            var reordered = await ProjectOperations.ReorderAsync(db, request);
+            return Results.Ok(reordered);
+        }).Produces<List<ProjectResponse>>();
+
         group.MapPut("/{id:int}", async (AppDbContext db, int id, UpdateProjectRequest request) =>
         {
             var updated = await ProjectOperations.UpdateAsync(db, id, request);

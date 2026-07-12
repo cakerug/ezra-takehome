@@ -75,7 +75,7 @@ public class DataModelTests : IDisposable
             {
                 Name = "Work",
                 Description = "Work-related tasks",
-                IsDefault = false,
+                Order = 0,
             };
             context.Projects.Add(project);
             context.SaveChanges();
@@ -101,7 +101,7 @@ public class DataModelTests : IDisposable
             var readProject = readContext.Projects.Single(p => p.Id == projectId);
             Assert.Equal("Work", readProject.Name);
             Assert.Equal("Work-related tasks", readProject.Description);
-            Assert.False(readProject.IsDefault);
+            Assert.Equal(0, readProject.Order);
 
             var readTask = readContext.Tasks.Single(t => t.Id == taskId);
             Assert.Equal("Write report", readTask.Title);
@@ -123,7 +123,7 @@ public class DataModelTests : IDisposable
 
         using (var setupContext = CreateContext())
         {
-            var project = new Project { Name = "Ephemeral", Description = null, IsDefault = false };
+            var project = new Project { Name = "Ephemeral", Description = null, Order = 0 };
             setupContext.Projects.Add(project);
             setupContext.SaveChanges();
             projectId = project.Id;
@@ -166,7 +166,7 @@ public class DataModelTests : IDisposable
 
         using (var setupContext = CreateContext())
         {
-            var project = new Project { Name = "Preloaded", Description = null, IsDefault = false };
+            var project = new Project { Name = "Preloaded", Description = null, Order = 0 };
             setupContext.Projects.Add(project);
             setupContext.SaveChanges();
             projectId = project.Id;

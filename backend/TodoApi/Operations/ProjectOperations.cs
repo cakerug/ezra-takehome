@@ -21,7 +21,8 @@ public static class ProjectOperations
     public static async Task<List<ProjectResponse>> ListAsync(AppDbContext db)
     {
         var projects = await db.Projects
-            .OrderBy(p => p.Id)
+            .OrderBy(p => p.Order)
+            .ThenBy(p => p.Id)
             .ToListAsync();
 
         return projects.Select(ToResponse).ToList();
@@ -32,11 +33,13 @@ public static class ProjectOperations
         FieldValidation.EnsureRequiredWithMaxLength(request.Name, NameMaxLength, "Name");
         FieldValidation.EnsureMaxLength(request.Description, DescriptionMaxLength, "Description");
 
+        var nextOrder = await NextOrderAsync(db);
+
         var project = new Project
         {
             Name = request.Name!,
             Description = request.Description,
-            IsDefault = false,
+            Order = nextOrder,
         };
 
         db.Projects.Add(project);
@@ -66,16 +69,59 @@ public static class ProjectOperations
         var project = await db.Projects.FindAsync(id)
             ?? throw new NotFoundException($"Project with id {id} was not found.");
 
-        if (project.IsDefault)
-        {
-            throw new ForbiddenOperationException("The default Inbox project cannot be deleted.");
-        }
-
         // Relies on U1's FK cascade configuration (OnDelete(DeleteBehavior.Cascade) + SQLite
         // "Foreign Keys=True") to remove this project's tasks at the database level, even though
         // they are not loaded/tracked here.
         db.Projects.Remove(project);
         await db.SaveChangesAsync();
+    }
+
+    public static async Task<List<ProjectResponse>> ReorderAsync(AppDbContext db, ReorderProjectsRequest request)
+    {
+        var orderedIds = request.OrderedProjectIds ?? new List<int>();
+
+        if (orderedIds.Count != orderedIds.Distinct().Count())
+        {
+            throw new ValidationException(
+                "OrderedProjectIds",
+                "The submitted project list contains duplicate IDs.");
+        }
+
+        var currentProjects = await db.Projects.ToListAsync();
+
+        var currentIds = currentProjects.Select(p => p.Id).ToHashSet();
+        var submittedIds = orderedIds.ToHashSet();
+
+        if (!submittedIds.SetEquals(currentIds))
+        {
+            throw new ValidationException(
+                "OrderedProjectIds",
+                "The submitted project list must contain exactly the set of projects that currently exist.");
+        }
+
+        var projectsById = currentProjects.ToDictionary(p => p.Id);
+
+        for (var i = 0; i < orderedIds.Count; i++)
+        {
+            projectsById[orderedIds[i]].Order = i;
+        }
+
+        await db.SaveChangesAsync();
+
+        var reordered = orderedIds.Select(projectId => projectsById[projectId]).ToList();
+        return reordered.Select(ToResponse).ToList();
+    }
+
+    private static async Task<int> NextOrderAsync(AppDbContext db)
+    {
+        var hasProjects = await db.Projects.AnyAsync();
+        if (!hasProjects)
+        {
+            return 0;
+        }
+
+        var maxOrder = await db.Projects.MaxAsync(p => p.Order);
+        return maxOrder + 1;
     }
 
     private static ProjectResponse ToResponse(Project project)
@@ -85,7 +131,7 @@ public static class ProjectOperations
             Id = project.Id,
             Name = project.Name,
             Description = project.Description,
-            IsDefault = project.IsDefault,
+            Order = project.Order,
         };
     }
 }

@@ -38,17 +38,14 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
       <div className="content__header">
         <h1 className="content__title">{selectedProject.name}</h1>
         {/* All project actions (Edit + Delete) live here, from a "…" next to the title -- the
-            sidebar rows carry none. The default project (Inbox) can't be edited or deleted, so it
-            gets no menu at all. */}
-        {!selectedProject.isDefault && (
-          <ActionMenu
-            buttonLabel={`More actions for ${selectedProject.name}`}
-            items={[
-              { label: 'Edit', onSelect: () => setIsEditOpen(true) },
-              { label: 'Delete', danger: true, onSelect: () => setIsDeleteOpen(true) },
-            ]}
-          />
-        )}
+            sidebar rows carry none. Every project gets the menu. */}
+        <ActionMenu
+          buttonLabel={`More actions for ${selectedProject.name}`}
+          items={[
+            { label: 'Edit', onSelect: () => setIsEditOpen(true) },
+            { label: 'Delete', danger: true, onSelect: () => setIsDeleteOpen(true) },
+          ]}
+        />
       </div>
       {selectedProject.description && (
         <p className="content__description">{selectedProject.description}</p>
@@ -87,14 +84,14 @@ function App() {
     queryFn: listProjects,
   });
 
-  // Fall back to the seeded default (Inbox) whenever there's no selection yet or the selected
-  // project no longer exists (e.g. it was just deleted), so the view is never blank. Never
-  // overrides a still-valid user selection.
+  // Fall back to the first project whenever there's no selection yet or the selected project no
+  // longer exists (e.g. it was just deleted), so the view is never blank. Never overrides a
+  // still-valid user selection.
   const selectionValid =
     selectedProjectId !== null && projects?.some((project) => project.id === selectedProjectId);
   const effectiveProjectId = selectionValid
     ? selectedProjectId
-    : ((projects?.find((project) => project.isDefault) ?? projects?.[0])?.id ?? null);
+    : (projects?.[0]?.id ?? null);
 
   return (
     <div className="layout">

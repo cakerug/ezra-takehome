@@ -42,7 +42,7 @@ public class DbSeederTests : IDisposable
     }
 
     [Fact]
-    public async Task SeedAsync_AgainstFreshDatabase_CreatesExactlyOneDefaultInboxPlusExampleData()
+    public async Task SeedAsync_AgainstFreshDatabase_CreatesSeveralOrderedProjectsWithExampleData()
     {
         using (var db = CreateContext())
         {
@@ -54,17 +54,12 @@ public class DbSeederTests : IDisposable
         var projects = verifyDb.Projects.ToList();
         var tasks = verifyDb.Tasks.ToList();
 
-        Assert.True(projects.Count >= 2, "Expected the default Inbox plus at least one example project.");
+        Assert.True(projects.Count >= 2, "Expected several example projects to be seeded.");
 
-        var defaultProjects = projects.Where(p => p.IsDefault).ToList();
-        Assert.Single(defaultProjects);
-        Assert.Equal("Inbox", defaultProjects[0].Name);
-
-        // All non-default projects are the example ones described in the plan (e.g. Personal,
-        // Work). We don't hard-code exact names beyond Inbox, just that they exist and have
-        // tasks, so this test isn't overly brittle to the specific example project names chosen.
-        var exampleProjects = projects.Where(p => !p.IsDefault).ToList();
-        Assert.NotEmpty(exampleProjects);
+        // Projects seed with distinct Order values so the sidebar has a stable initial order.
+        var orders = projects.Select(p => p.Order).OrderBy(o => o).ToList();
+        Assert.Equal(orders.Count, orders.Distinct().Count());
+        Assert.Contains(projects, p => p.Name == "Inbox");
 
         Assert.NotEmpty(tasks);
         Assert.All(tasks, t => Assert.True(t.ProjectId > 0));
@@ -85,7 +80,7 @@ public class DbSeederTests : IDisposable
     }
 
     [Fact]
-    public async Task SeedAsync_CalledTwice_IsANoOp_NoDuplicateInboxOrExampleData()
+    public async Task SeedAsync_CalledTwice_IsANoOp_NoDuplicateProjectsOrTasks()
     {
         using (var db = CreateContext())
         {
@@ -111,6 +106,5 @@ public class DbSeederTests : IDisposable
 
         Assert.Equal(projectCountAfterFirstSeed, projectCountAfterSecondSeed);
         Assert.Equal(taskCountAfterFirstSeed, taskCountAfterSecondSeed);
-        Assert.Single(verifyDb.Projects.Where(p => p.IsDefault));
     }
 }

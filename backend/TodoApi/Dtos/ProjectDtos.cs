@@ -24,6 +24,15 @@ public class UpdateProjectRequest
 }
 
 /// <summary>
+/// Request body for reordering all projects. Must contain exactly the set of project IDs that
+/// currently exist, in the desired new order.
+/// </summary>
+public class ReorderProjectsRequest
+{
+    public required List<int> OrderedProjectIds { get; set; } = new();
+}
+
+/// <summary>
 /// Wire representation of a <see cref="Models.Project"/>. Deliberately excludes the Tasks
 /// navigation property — endpoints in this unit only need project-level fields.
 /// </summary>
@@ -35,5 +44,5 @@ public class ProjectResponse
 
     public string? Description { get; set; }
 
-    public required bool IsDefault { get; set; }
+    public required int Order { get; set; }
 }
