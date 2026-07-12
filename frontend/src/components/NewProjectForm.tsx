@@ -85,10 +85,11 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
   return (
     <form className="new-project-form" onSubmit={handleSubmit}>
       <label className="new-project-form__field">
-        <span>Name</span>
         <input
           ref={nameInputRef}
           type="text"
+          placeholder="Project Name"
+          aria-label="Project Name"
           value={name}
           onChange={(event) => setName(event.target.value)}
           required

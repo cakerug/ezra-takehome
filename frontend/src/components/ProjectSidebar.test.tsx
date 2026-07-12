@@ -104,7 +104,7 @@ describe('ProjectSidebar', () => {
 
     await user.click(screen.getByRole('button', { name: '+ Add project' }));
 
-    await user.type(screen.getByLabelText('Name'), 'Groceries');
+    await user.type(screen.getByLabelText('Project Name'), 'Groceries');
     await user.click(screen.getByRole('button', { name: 'Add project' }));
 
     await waitFor(() => {
@@ -115,7 +115,7 @@ describe('ProjectSidebar', () => {
     expect(mockListProjects).toHaveBeenCalledTimes(2);
     // The inline form closes itself after a successful creation, so the add button returns.
     expect(screen.getByRole('button', { name: '+ Add project' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Project Name')).not.toBeInTheDocument();
   });
 
   it('shows a server-side validation error inline on the new-project form, and does not trigger the Toast', async () => {
@@ -135,7 +135,7 @@ describe('ProjectSidebar', () => {
 
     await user.click(screen.getByRole('button', { name: '+ Add project' }));
 
-    await user.type(screen.getByLabelText('Name'), 'A'.repeat(101));
+    await user.type(screen.getByLabelText('Project Name'), 'A'.repeat(101));
     await user.click(screen.getByRole('button', { name: 'Add project' }));
 
     await waitFor(() => {
