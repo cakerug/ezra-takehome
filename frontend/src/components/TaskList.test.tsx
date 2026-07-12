@@ -176,6 +176,65 @@ describe('TaskList', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('pressing Escape on an empty new-task form hides it immediately, with no confirm dialog', async () => {
+    const user = userEvent.setup();
+    mockListTasks.mockResolvedValueOnce([]);
+
+    renderTaskList();
+
+    await user.click(await screen.findByRole('button', { name: '+ Add task' }));
+    expect(screen.getByLabelText('Title')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '+ Add task' })).toBeInTheDocument();
+  });
+
+  it('pressing Escape on a dirty new-task form shows a discard confirmation', async () => {
+    const user = userEvent.setup();
+    mockListTasks.mockResolvedValueOnce([]);
+
+    renderTaskList();
+
+    await user.click(await screen.findByRole('button', { name: '+ Add task' }));
+    await user.type(screen.getByLabelText('Title'), 'Some task');
+
+    await user.keyboard('{Escape}');
+
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByText('Discard new task?')).toBeInTheDocument();
+
+    // "Keep editing" just dismisses the confirm dialog -- the form stays open with its content.
+    await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue('Some task');
+  });
+
+  it('confirming discard on a dirty new-task form hides and clears it', async () => {
+    const user = userEvent.setup();
+    mockListTasks.mockResolvedValueOnce([]);
+
+    renderTaskList();
+
+    await user.click(await screen.findByRole('button', { name: '+ Add task' }));
+    await user.type(screen.getByLabelText('Title'), 'Some task');
+    await user.type(screen.getByLabelText('Description'), 'Some description');
+
+    await user.keyboard('{Escape}');
+    await user.click(await screen.findByRole('button', { name: 'Discard' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+
+    // Reopening the form should show it empty, confirming the discard actually cleared the fields.
+    await user.click(await screen.findByRole('button', { name: '+ Add task' }));
+    expect(screen.getByLabelText('Title')).toHaveValue('');
+    expect(screen.getByLabelText('Description')).toHaveValue('');
+  });
+
   it('completing a task strikes it through, moves it to the bottom, and persists via the API (AE1)', async () => {
     const user = userEvent.setup();
     const first = makeTask({ id: 1, title: 'First', order: 0 });

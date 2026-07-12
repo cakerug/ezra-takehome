@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createTask } from '../api/client';
 import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface NewTaskFormProps {
   projectId: number;
@@ -27,6 +28,7 @@ export function NewTaskForm({ projectId, onCreated, onCancel }: NewTaskFormProps
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Focus the title on open so the user can start typing immediately -- and, since the form stays
@@ -34,6 +36,33 @@ export function NewTaskForm({ projectId, onCreated, onCancel }: NewTaskFormProps
   useEffect(() => {
     titleInputRef.current?.focus();
   }, []);
+
+  const isDirty = title.trim().length > 0 || description.trim().length > 0;
+
+  // Escape hides the form immediately when it's empty (same as Cancel), but -- unlike Cancel, which
+  // intentionally stays a no-confirmation discard -- prompts via the shared ConfirmDialog when
+  // there's content to lose, mirroring TaskDetailDialog's requestClose/isDirty pattern.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (isDirty) {
+        setIsConfirmingDiscard(true);
+      } else {
+        onCancel?.();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDirty, onCancel]);
+
+  function handleDiscard() {
+    setIsConfirmingDiscard(false);
+    setTitle('');
+    setDescription('');
+    onCancel?.();
+  }
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -103,6 +132,17 @@ export function NewTaskForm({ projectId, onCreated, onCancel }: NewTaskFormProps
           {mutation.isPending ? 'Adding…' : 'Add task'}
         </button>
       </div>
+
+      {isConfirmingDiscard && (
+        <ConfirmDialog
+          title="Discard new task?"
+          message="You have unsaved changes. Closing now will discard them."
+          confirmLabel="Discard"
+          cancelLabel="Keep editing"
+          onConfirm={handleDiscard}
+          onCancel={() => setIsConfirmingDiscard(false)}
+        />
+      )}
     </form>
   );
 }
