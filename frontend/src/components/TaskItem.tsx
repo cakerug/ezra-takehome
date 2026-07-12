@@ -134,12 +134,10 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
     },
   });
 
-  // Edit, "move to project", and delete all live in the row's "…" menu. Edit opens the same detail
-  // dialog as clicking the row body. The move targets are only included when there's somewhere to
-  // move to (i.e. more than one project exists).
+  // "Move to project", edit, and delete all live in the row's "…" menu. Edit (which opens the same
+  // detail dialog as clicking the row body) sits just above Delete at the bottom. The move targets
+  // are only included when there's somewhere to move to (i.e. more than one project exists).
   const menuItems: ActionMenuEntry[] = [
-    { label: 'Edit', onSelect: () => setIsDetailOpen(true) },
-    { separator: true } as const,
     ...(otherProjects.length > 0
       ? [
           { heading: 'Move to' } as const,
@@ -150,6 +148,7 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
           { separator: true } as const,
         ]
       : []),
+    { label: 'Edit', onSelect: () => setIsDetailOpen(true) },
     { label: 'Delete', danger: true, onSelect: () => setIsConfirmingDelete(true) },
   ];
 
