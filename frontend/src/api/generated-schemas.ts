@@ -19,11 +19,14 @@ const ProjectResponse = z.object({
   id: z.number().int(),
   name: z.string(),
   description: z.string().nullish(),
-  isDefault: z.boolean(),
+  order: z.number().int(),
 });
 const CreateProjectRequest = z
   .object({ name: z.string().nullable(), description: z.string().nullable() })
   .partial();
+const ReorderProjectsRequest = z.object({
+  orderedProjectIds: z.array(z.number().int()),
+});
 const UpdateProjectRequest = z
   .object({ name: z.string().nullable(), description: z.string().nullable() })
   .partial();
@@ -51,6 +54,7 @@ const MoveTaskRequest = z.object({ targetProjectId: z.number().int() });
 export const schemas = {
   ProjectResponse,
   CreateProjectRequest,
+  ReorderProjectsRequest,
   UpdateProjectRequest,
   TaskResponse,
   CreateTaskRequest,
@@ -61,6 +65,7 @@ export const schemas = {
 
 export type ProjectResponse = z.infer<typeof ProjectResponse>;
 export type CreateProjectRequest = z.infer<typeof CreateProjectRequest>;
+export type ReorderProjectsRequest = z.infer<typeof ReorderProjectsRequest>;
 export type UpdateProjectRequest = z.infer<typeof UpdateProjectRequest>;
 export type TaskResponse = z.infer<typeof TaskResponse>;
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequest>;

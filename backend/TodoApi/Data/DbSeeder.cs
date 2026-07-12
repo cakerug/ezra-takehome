@@ -4,10 +4,9 @@ using TodoApi.Models;
 namespace TodoApi.Data;
 
 /// <summary>
-/// Seeds a fresh database with example data (R15) including the mandatory default "Inbox"
-/// project (R8) that U3/U4 rely on always existing. Idempotent: if any project already exists,
-/// <see cref="SeedAsync"/> is a no-op, so it is safe to call on every startup against a
-/// persisted SQLite file without creating duplicates.
+/// Seeds a fresh database with example data (R15): a few ordinary projects, each with a handful
+/// of tasks. Idempotent: if any project already exists, <see cref="SeedAsync"/> is a no-op, so it
+/// is safe to call on every startup against a persisted SQLite file without creating duplicates.
 /// </summary>
 public static class DbSeeder
 {
@@ -23,8 +22,8 @@ public static class DbSeeder
         var inbox = new Project
         {
             Name = "Inbox",
-            Description = "Default catch-all project for tasks that haven't been sorted yet.",
-            IsDefault = true,
+            Description = "A place to jot down tasks before sorting them into projects.",
+            Order = 0,
             Tasks = new List<TaskItem>
             {
                 new() { Title = "Welcome to your to-do app!", Order = 0, IsComplete = false, CreatedAt = now },
@@ -44,7 +43,7 @@ public static class DbSeeder
         {
             Name = "Personal",
             Description = "Errands, chores, and other personal to-dos.",
-            IsDefault = false,
+            Order = 1,
             Tasks = new List<TaskItem>
             {
                 new() { Title = "Buy groceries", Order = 0, IsComplete = false, CreatedAt = now },
@@ -70,7 +69,7 @@ public static class DbSeeder
         {
             Name = "Work",
             Description = "Tasks related to your job.",
-            IsDefault = false,
+            Order = 2,
             Tasks = new List<TaskItem>
             {
                 new() { Title = "Prepare sprint planning notes", Order = 0, IsComplete = false, CreatedAt = now },

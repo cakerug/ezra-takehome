@@ -84,7 +84,6 @@ public class ProjectEndpointsTests : IDisposable
         Assert.NotNull(created);
         Assert.Equal("Groceries", created!.Name);
         Assert.Equal("Weekly shopping list", created.Description);
-        Assert.False(created.IsDefault);
         Assert.True(created.Id > 0);
 
         // List
@@ -118,16 +117,15 @@ public class ProjectEndpointsTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletingDefaultInboxProject_Returns403AndLeavesItAndItsTasksIntact()
+    public async Task DeletingFormerlyDefaultInboxProject_IsAllowedAndCascadesToItsTasks()
     {
-        // Seeding doesn't exist yet (that's U5), so manually insert a project with
-        // IsDefault = true here to exercise the guard, plus a task under it, to prove the
-        // guard fires BEFORE any deletion/cascade happens.
+        // The "default project" concept is gone: every project, including one named "Inbox",
+        // deletes like any other and its tasks cascade away.
         int inboxId;
         int taskId;
         using (var db = CreateDirectDbContext())
         {
-            var inbox = new Project { Name = "Inbox", Description = null, IsDefault = true };
+            var inbox = new Project { Name = "Inbox", Description = null, Order = 0 };
             db.Projects.Add(inbox);
             db.SaveChanges();
             inboxId = inbox.Id;
@@ -148,28 +146,24 @@ public class ProjectEndpointsTests : IDisposable
 
         var deleteResponse = await client.DeleteAsync($"/api/projects/{inboxId}");
 
-        Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
         using (var verifyDb = CreateDirectDbContext())
         {
-            var stillThere = verifyDb.Projects.SingleOrDefault(p => p.Id == inboxId);
-            Assert.NotNull(stillThere);
-            Assert.True(stillThere!.IsDefault);
-
-            var taskStillThere = verifyDb.Tasks.SingleOrDefault(t => t.Id == taskId);
-            Assert.NotNull(taskStillThere);
+            Assert.Null(verifyDb.Projects.SingleOrDefault(p => p.Id == inboxId));
+            Assert.Null(verifyDb.Tasks.SingleOrDefault(t => t.Id == taskId));
         }
     }
 
     [Fact]
-    public async Task DeletingNonDefaultProjectWithTasks_CascadesAndRemovesTasksToo()
+    public async Task DeletingProjectWithTasks_CascadesAndRemovesTasksToo()
     {
         int projectId;
         int task1Id;
         int task2Id;
         using (var db = CreateDirectDbContext())
         {
-            var project = new Project { Name = "Home Renovation", Description = null, IsDefault = false };
+            var project = new Project { Name = "Home Renovation", Description = null, Order = 0 };
             db.Projects.Add(project);
             db.SaveChanges();
             projectId = project.Id;
@@ -239,5 +233,116 @@ public class ProjectEndpointsTests : IDisposable
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problem);
         Assert.Contains("Description", problem!.Errors.Keys);
+    }
+
+    // The test database is migrated + seeded on startup, so a few projects already exist. These
+    // tests assert on newly-created projects relative to the seeded ones rather than assuming an
+    // empty table.
+
+    [Fact]
+    public async Task CreatedProjects_ReceiveIncrementingOrderAndListAfterExistingOnes()
+    {
+        var client = _factory.CreateClient();
+
+        var first = await CreateProjectAsync(client, "First");
+        var second = await CreateProjectAsync(client, "Second");
+
+        // Each new project's Order is the previous max + 1, so they sort strictly after the
+        // seeded ones and preserve creation order among themselves.
+        Assert.True(first.Order < second.Order);
+
+        var list = await ListProjectsAsync(client);
+        var ids = list.Select(p => p.Id).ToList();
+        Assert.True(ids.IndexOf(first.Id) < ids.IndexOf(second.Id));
+        // List is returned sorted by Order.
+        var orders = list.Select(p => p.Order).ToList();
+        Assert.Equal(orders.OrderBy(o => o).ToList(), orders);
+    }
+
+    [Fact]
+    public async Task FullReorderRoundTrip_ReversesTheProjectListExactly()
+    {
+        var client = _factory.CreateClient();
+
+        // Include the seeded projects so the request covers exactly the full current set.
+        await CreateProjectAsync(client, "A");
+        await CreateProjectAsync(client, "B");
+
+        var before = await ListProjectsAsync(client);
+        var newOrder = before.Select(p => p.Id).Reverse().ToList();
+
+        var reorderResponse = await client.PutAsJsonAsync("/api/projects/reorder", new ReorderProjectsRequest
+        {
+            OrderedProjectIds = newOrder,
+        });
+        Assert.Equal(HttpStatusCode.OK, reorderResponse.StatusCode);
+        var reordered = await reorderResponse.Content.ReadFromJsonAsync<List<ProjectResponse>>();
+        Assert.NotNull(reordered);
+        Assert.Equal(newOrder, reordered!.Select(p => p.Id).ToList());
+        // Order values are re-densified to 0..n-1 in the new sequence.
+        Assert.Equal(Enumerable.Range(0, newOrder.Count).ToList(), reordered.Select(p => p.Order).ToList());
+
+        // Confirm via a fresh list call (queried by Order) that persisted state matches.
+        var list = await ListProjectsAsync(client);
+        Assert.Equal(newOrder, list.Select(p => p.Id).ToList());
+    }
+
+    [Fact]
+    public async Task ReorderOmittingAnExistingProjectId_Returns400ValidationError()
+    {
+        var client = _factory.CreateClient();
+
+        await CreateProjectAsync(client, "A");
+        var before = await ListProjectsAsync(client);
+
+        var response = await client.PutAsJsonAsync("/api/projects/reorder", new ReorderProjectsRequest
+        {
+            OrderedProjectIds = before.Select(p => p.Id).Skip(1).ToList(), // omits one existing id
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        // Confirm nothing was mutated.
+        var after = await ListProjectsAsync(client);
+        Assert.Equal(before.Select(p => p.Id).ToList(), after.Select(p => p.Id).ToList());
+    }
+
+    [Fact]
+    public async Task ReorderWithDuplicateProjectId_Returns400ValidationError()
+    {
+        var client = _factory.CreateClient();
+
+        var a = await CreateProjectAsync(client, "A");
+        var before = await ListProjectsAsync(client);
+
+        // Duplicate one id and drop another so the count still matches but the set doesn't.
+        var ids = before.Select(p => p.Id).ToList();
+        ids[0] = a.Id;
+        ids[ids.Count - 1] = a.Id;
+
+        var response = await client.PutAsJsonAsync("/api/projects/reorder", new ReorderProjectsRequest
+        {
+            OrderedProjectIds = ids,
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static async Task<ProjectResponse> CreateProjectAsync(HttpClient client, string name)
+    {
+        var response = await client.PostAsJsonAsync("/api/projects", new CreateProjectRequest { Name = name });
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<ProjectResponse>();
+        Assert.NotNull(created);
+        return created!;
+    }
+
+    private static async Task<List<ProjectResponse>> ListProjectsAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/api/projects");
+        response.EnsureSuccessStatusCode();
+        var list = await response.Content.ReadFromJsonAsync<List<ProjectResponse>>();
+        Assert.NotNull(list);
+        return list!;
     }
 }

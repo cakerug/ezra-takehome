@@ -47,8 +47,8 @@ const mockUncompleteTask = vi.mocked(uncompleteTask);
 const mockMoveTask = vi.mocked(moveTask);
 const mockReorderTasks = vi.mocked(reorderTasks);
 
-const inbox: ProjectResponse = { id: 1, name: 'Inbox', description: null, isDefault: true };
-const work: ProjectResponse = { id: 2, name: 'Work', description: null, isDefault: false };
+const inbox: ProjectResponse = { id: 1, name: 'Inbox', description: null, order: 0 };
+const work: ProjectResponse = { id: 2, name: 'Work', description: null, order: 1 };
 
 function makeTask(overrides: Partial<TaskResponse>): TaskResponse {
   return {

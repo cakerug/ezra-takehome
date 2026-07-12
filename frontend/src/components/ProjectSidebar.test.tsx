@@ -15,6 +15,7 @@ vi.mock('../api/client', async () => {
     createProject: vi.fn(),
     updateProject: vi.fn(),
     deleteProject: vi.fn(),
+    reorderProjects: vi.fn(),
   };
 });
 
@@ -25,12 +26,12 @@ const mockCreateProject = vi.mocked(createProject);
 const mockUpdateProject = vi.mocked(updateProject);
 const mockDeleteProject = vi.mocked(deleteProject);
 
-const inbox: ProjectResponse = { id: 1, name: 'Inbox', description: null, isDefault: true };
+const inbox: ProjectResponse = { id: 1, name: 'Inbox', description: null, order: 0 };
 const work: ProjectResponse = {
   id: 2,
   name: 'Work',
   description: 'Work stuff',
-  isDefault: false,
+  order: 1,
 };
 
 function renderSidebar() {
@@ -94,7 +95,7 @@ describe('ProjectSidebar', () => {
       id: 3,
       name: 'Groceries',
       description: 'Buy milk',
-      isDefault: false,
+      order: 2,
     };
     mockCreateProject.mockResolvedValueOnce(created);
     mockListProjects.mockResolvedValueOnce([inbox, created]);
@@ -161,7 +162,7 @@ describe('ProjectSidebar', () => {
       id: 2,
       name: 'Work Renamed',
       description: 'New description',
-      isDefault: false,
+      order: 1,
     };
     mockUpdateProject.mockResolvedValueOnce(updated);
     const onDone = vi.fn();
@@ -232,8 +233,7 @@ describe('ProjectSidebar', () => {
     await screen.findByText('Inbox');
     await screen.findByText('Work');
 
-    // All project actions moved to the content-area header, so no row carries an overflow menu --
-    // not the default project, and not a regular one either.
+    // All project actions moved to the content-area header, so no row carries an overflow menu.
     expect(screen.queryByRole('button', { name: /More actions/ })).not.toBeInTheDocument();
     // The rows are still selectable (they're plain buttons named after the project).
     expect(screen.getByRole('button', { name: 'Work' })).toBeInTheDocument();

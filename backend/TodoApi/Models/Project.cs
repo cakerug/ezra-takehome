@@ -8,7 +8,7 @@ public class Project
 
     public string? Description { get; set; }
 
-    public bool IsDefault { get; set; }
+    public int Order { get; set; }
 
     public List<TaskItem> Tasks { get; set; } = new();
 }
