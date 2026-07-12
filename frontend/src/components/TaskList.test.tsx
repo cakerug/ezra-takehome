@@ -417,7 +417,7 @@ describe('TaskList', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('moves a task from the detail view sidebar and closes the dialog', async () => {
+  it('moves a task from the detail view\'s "…" menu and closes the dialog', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Movable task', projectId: 1 });
     mockListTasks.mockResolvedValueOnce([task]);
@@ -433,8 +433,9 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('button', { name: 'View "Movable task"' }));
     const dialog = await screen.findByRole('dialog');
 
-    // The sidebar surfaces the same "move to project" targets as the row's "…" menu.
-    await user.click(within(dialog).getByRole('button', { name: 'Work' }));
+    // The dialog's top-right "…" menu surfaces the same "move to project" targets as the row's.
+    await user.click(within(dialog).getByRole('button', { name: 'More actions for "Movable task"' }));
+    await user.click(within(dialog).getByRole('menuitem', { name: 'Work' }));
 
     await waitFor(() => {
       expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
@@ -445,7 +446,7 @@ describe('TaskList', () => {
     });
   });
 
-  it('deletes a task from the detail view sidebar via the confirm dialog', async () => {
+  it('deletes a task from the detail view\'s "…" menu via the confirm dialog', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Doomed task' });
     mockListTasks.mockResolvedValueOnce([task]);
@@ -459,7 +460,8 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('button', { name: 'View "Doomed task"' }));
     const dialog = await screen.findByRole('dialog');
 
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await user.click(within(dialog).getByRole('button', { name: 'More actions for "Doomed task"' }));
+    await user.click(within(dialog).getByRole('menuitem', { name: 'Delete' }));
     const confirm = await screen.findByRole('alertdialog');
     await user.click(within(confirm).getByRole('button', { name: 'Delete' }));
 
