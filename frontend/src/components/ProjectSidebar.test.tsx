@@ -26,11 +26,10 @@ const mockCreateProject = vi.mocked(createProject);
 const mockUpdateProject = vi.mocked(updateProject);
 const mockDeleteProject = vi.mocked(deleteProject);
 
-const inbox: ProjectResponse = { id: 1, name: 'Inbox', description: null, order: 0 };
+const inbox: ProjectResponse = { id: 1, name: 'Inbox', order: 0 };
 const work: ProjectResponse = {
   id: 2,
   name: 'Work',
-  description: 'Work stuff',
   order: 1,
 };
 
@@ -94,7 +93,6 @@ describe('ProjectSidebar', () => {
     const created: ProjectResponse = {
       id: 3,
       name: 'Groceries',
-      description: 'Buy milk',
       order: 2,
     };
     mockCreateProject.mockResolvedValueOnce(created);
@@ -104,23 +102,19 @@ describe('ProjectSidebar', () => {
 
     await screen.findByText('Inbox');
 
-    await user.click(screen.getByRole('button', { name: '+ Create new project' }));
+    await user.click(screen.getByRole('button', { name: '+ Add project' }));
 
     await user.type(screen.getByLabelText('Name'), 'Groceries');
-    await user.type(screen.getByLabelText('Description'), 'Buy milk');
     await user.click(screen.getByRole('button', { name: 'Add project' }));
 
     await waitFor(() => {
-      expect(mockCreateProject).toHaveBeenCalledWith({
-        name: 'Groceries',
-        description: 'Buy milk',
-      });
+      expect(mockCreateProject).toHaveBeenCalledWith({ name: 'Groceries' });
     });
 
     expect(await screen.findByText('Groceries')).toBeInTheDocument();
     expect(mockListProjects).toHaveBeenCalledTimes(2);
-    // The inline form closes itself after a successful creation, so the create button returns.
-    expect(screen.getByRole('button', { name: '+ Create new project' })).toBeInTheDocument();
+    // The inline form closes itself after a successful creation, so the add button returns.
+    expect(screen.getByRole('button', { name: '+ Add project' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   });
 
@@ -139,7 +133,7 @@ describe('ProjectSidebar', () => {
 
     await screen.findByText('Inbox');
 
-    await user.click(screen.getByRole('button', { name: '+ Create new project' }));
+    await user.click(screen.getByRole('button', { name: '+ Add project' }));
 
     await user.type(screen.getByLabelText('Name'), 'A'.repeat(101));
     await user.click(screen.getByRole('button', { name: 'Add project' }));
@@ -160,7 +154,6 @@ describe('ProjectSidebar', () => {
     const updated: ProjectResponse = {
       id: 2,
       name: 'Work Renamed',
-      description: 'New description',
       order: 1,
     };
     mockUpdateProject.mockResolvedValueOnce(updated);
@@ -174,17 +167,10 @@ describe('ProjectSidebar', () => {
     await user.clear(nameInput);
     await user.type(nameInput, 'Work Renamed');
 
-    const descriptionInput = within(editForm).getByLabelText('Description');
-    await user.clear(descriptionInput);
-    await user.type(descriptionInput, 'New description');
-
     await user.click(within(editForm).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(mockUpdateProject).toHaveBeenCalledWith(2, {
-        name: 'Work Renamed',
-        description: 'New description',
-      });
+      expect(mockUpdateProject).toHaveBeenCalledWith(2, { name: 'Work Renamed' });
     });
     // On success the form calls onDone so the content-area dialog closes.
     await waitFor(() => expect(onDone).toHaveBeenCalled());

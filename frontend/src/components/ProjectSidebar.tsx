@@ -180,7 +180,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
           className="btn btn--secondary project-sidebar__create-button"
           onClick={() => setIsCreatingProject(true)}
         >
-          + Create new project
+          + Add project
         </button>
       )}
     </nav>
@@ -192,20 +192,15 @@ interface EditProjectFormProps {
   onDone: () => void;
 }
 
-/** Name + description edit form. Opened from the content-area header's "…" menu (next to the
- * project title), rendered inside a `Dialog`. Field-validation failures render inline; any other
- * failure surfaces in the app-level toast (via `showErrorToast`). */
+/** Name edit form. Opened from the content-area header's "…" menu (next to the project title),
+ * rendered inside a `Dialog`. Field-validation failures render inline; any other failure surfaces
+ * in the app-level toast (via `showErrorToast`). */
 export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(project.name);
-  const [description, setDescription] = useState(project.description ?? '');
 
   const mutation = useMutation({
-    mutationFn: () =>
-      updateProject(project.id, {
-        name,
-        ...(description.trim() ? { description } : {}),
-      }),
+    mutationFn: () => updateProject(project.id, { name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       onDone();
@@ -237,14 +232,6 @@ export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-        />
-      </label>
-      <label className="edit-project-form__field">
-        <span>Description</span>
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={2}
         />
       </label>
       {errorMessage && <p className="edit-project-form__error">{errorMessage}</p>}

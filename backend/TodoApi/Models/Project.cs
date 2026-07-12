@@ -6,8 +6,6 @@ public class Project
 
     public required string Name { get; set; }
 
-    public string? Description { get; set; }
-
     public int Order { get; set; }
 
     public List<TaskItem> Tasks { get; set; } = new();

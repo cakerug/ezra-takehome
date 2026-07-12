@@ -13,10 +13,10 @@ interface NewProjectFormProps {
 }
 
 /**
- * "New project" form (name + description). Posts via a React Query mutation; on success,
- * invalidates the `['projects']` query so `ProjectSidebar` refetches from the server -- per the
- * plan's pessimistic-update rule, the new project only appears once the server has confirmed it,
- * not optimistically.
+ * "New project" form (name only). Posts via a React Query mutation; on success, invalidates the
+ * `['projects']` query so `ProjectSidebar` refetches from the server -- per the plan's
+ * pessimistic-update rule, the new project only appears once the server has confirmed it, not
+ * optimistically.
  *
  * Rendered inline in the sidebar (mirrors `NewTaskForm`): it autofocuses its name field on open and
  * Escape closes it, prompting via the shared `ConfirmDialog` when there is unsaved content to lose.
@@ -27,7 +27,6 @@ interface NewProjectFormProps {
 export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +35,7 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
     nameInputRef.current?.focus();
   }, []);
 
-  const isDirty = name.trim().length > 0 || description.trim().length > 0;
+  const isDirty = name.trim().length > 0;
 
   // Escape hides the form immediately when it's empty (same as Cancel), but -- unlike Cancel, which
   // intentionally stays a no-confirmation discard -- prompts via the shared ConfirmDialog when
@@ -59,20 +58,14 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
   function handleDiscard() {
     setIsConfirmingDiscard(false);
     setName('');
-    setDescription('');
     onCancel?.();
   }
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createProject({
-        name,
-        ...(description.trim() ? { description } : {}),
-      }),
+    mutationFn: () => createProject({ name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setName('');
-      setDescription('');
       onCreated?.();
     },
     onError: (error: unknown) => {
@@ -99,14 +92,6 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-        />
-      </label>
-      <label className="new-project-form__field">
-        <span>Description</span>
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={2}
         />
       </label>
       {errorMessage && <p className="new-project-form__error">{errorMessage}</p>}

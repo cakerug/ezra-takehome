@@ -22,7 +22,6 @@ public static class DbSeeder
         var inbox = new Project
         {
             Name = "Inbox",
-            Description = "A place to jot down tasks before sorting them into projects.",
             Order = 0,
             Tasks = new List<TaskItem>
             {
@@ -42,7 +41,6 @@ public static class DbSeeder
         var personal = new Project
         {
             Name = "Personal",
-            Description = "Errands, chores, and other personal to-dos.",
             Order = 1,
             Tasks = new List<TaskItem>
             {
@@ -68,7 +66,6 @@ public static class DbSeeder
         var work = new Project
         {
             Name = "Work",
-            Description = "Tasks related to your job.",
             Order = 2,
             Tasks = new List<TaskItem>
             {

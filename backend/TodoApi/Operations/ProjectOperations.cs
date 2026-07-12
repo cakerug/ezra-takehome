@@ -16,7 +16,6 @@ namespace TodoApi.Operations;
 public static class ProjectOperations
 {
     private const int NameMaxLength = 200;
-    private const int DescriptionMaxLength = 2000;
 
     public static async Task<List<ProjectResponse>> ListAsync(AppDbContext db)
     {
@@ -31,14 +30,12 @@ public static class ProjectOperations
     public static async Task<ProjectResponse> CreateAsync(AppDbContext db, CreateProjectRequest request)
     {
         FieldValidation.EnsureRequiredWithMaxLength(request.Name, NameMaxLength, "Name");
-        FieldValidation.EnsureMaxLength(request.Description, DescriptionMaxLength, "Description");
 
         var nextOrder = await NextOrderAsync(db);
 
         var project = new Project
         {
             Name = request.Name!,
-            Description = request.Description,
             Order = nextOrder,
         };
 
@@ -51,13 +48,11 @@ public static class ProjectOperations
     public static async Task<ProjectResponse> UpdateAsync(AppDbContext db, int id, UpdateProjectRequest request)
     {
         FieldValidation.EnsureRequiredWithMaxLength(request.Name, NameMaxLength, "Name");
-        FieldValidation.EnsureMaxLength(request.Description, DescriptionMaxLength, "Description");
 
         var project = await db.Projects.FindAsync(id)
             ?? throw new NotFoundException($"Project with id {id} was not found.");
 
         project.Name = request.Name!;
-        project.Description = request.Description;
 
         await db.SaveChangesAsync();
 
@@ -130,7 +125,6 @@ public static class ProjectOperations
         {
             Id = project.Id,
             Name = project.Name,
-            Description = project.Description,
             Order = project.Order,
         };
     }
