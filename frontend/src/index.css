@@ -476,8 +476,15 @@ button:disabled {
   transition: opacity 0.12s ease;
 }
 
-.task-item:hover .task-item__drag-handle,
-.task-item:focus-within .task-item__drag-handle {
+/* Completed rows render an inert (disabled) handle purely to keep layout stable. Without this it
+   would pick up the global `button:disabled { opacity: 0.55 }` and show permanently -- keep it
+   hidden. */
+.task-item__drag-handle:disabled {
+  opacity: 0;
+}
+
+.task-item--draggable:hover .task-item__drag-handle,
+.task-item--draggable:focus-within .task-item__drag-handle {
   opacity: 1;
 }
 
