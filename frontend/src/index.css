@@ -327,6 +327,13 @@ button:disabled {
   resize: vertical;
 }
 
+/* Match the task detail dialog's title field: the project name reads as the dialog's headline
+   rather than a small muted form input (the label wrapper's 13px is overridden here). */
+.edit-project-form__field input {
+  font-size: 18px;
+  font-weight: 600;
+}
+
 .new-project-form__error,
 .edit-project-form__error,
 .new-task-form__error {
@@ -726,33 +733,13 @@ button:disabled {
   gap: 20px;
 }
 
-/* Top header row: × on the left, "…" menu on the right. Pulled out to the dialog's edges (negating
-   its 20px padding) so the grey bottom line spans the full width, reading as a distinct header bar
-   above the title field. A small top padding keeps it tight to the top edge. */
+/* Top header row: just the "…" menu, right-aligned. Pulled up tight to the dialog's top edge
+   (negating the 20px padding) with only a small offset, keeping the menu close to the title below. */
 .task-detail__topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin: -20px -20px 0;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* Top-left close button, replacing the old footer "Close" button. */
-.task-detail__close {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.task-detail__close:hover {
-  background: var(--border);
-  color: var(--text);
+  justify-content: flex-end;
+  margin: -14px -12px -12px;
 }
 
 /* Left column: title/description editing buffer + Save action. */
