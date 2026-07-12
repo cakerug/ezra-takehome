@@ -149,6 +149,7 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
         ]
       : []),
     { label: 'Edit', onSelect: () => setIsDetailOpen(true) },
+    { separator: true } as const,
     { label: 'Delete', danger: true, onSelect: () => setIsConfirmingDelete(true) },
   ];
 
