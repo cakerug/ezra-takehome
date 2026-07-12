@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -104,6 +104,32 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
 
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
+  // A project row is both the pointer drag surface and a click-to-select button, so on release the
+  // browser fires a native `click` on the just-dragged row -- which would otherwise select it even
+  // though the user only meant to reorder. dnd-kit's `onDragStart` fires only once a real drag
+  // begins (the 8px `PointerSensor` threshold, never a plain click), so we raise a flag there and
+  // have the select handler ignore the trailing click. The flag is cleared on the next tick (after
+  // that click has been dispatched) in both drag-end and drag-cancel, so it can never wedge and
+  // swallow a later genuine click if a drag happens to produce no trailing click.
+  const justDraggedRef = useRef(false);
+
+  function handleDragStart() {
+    justDraggedRef.current = true;
+  }
+
+  function clearJustDraggedSoon() {
+    setTimeout(() => {
+      justDraggedRef.current = false;
+    }, 0);
+  }
+
+  function handleSelectProject(projectId: SelectedProjectId) {
+    if (justDraggedRef.current) {
+      return;
+    }
+    onSelectProject(projectId);
+  }
+
   const sensors = useSensors(
     // The whole row is the drag surface and is also a click-to-select button, so a small movement
     // threshold lets a plain click still select -- only a deliberate drag (pointer moves ≥8px
@@ -126,6 +152,9 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   });
 
   function handleDragEnd(event: DragEndEvent) {
+    // Let the just-dragged row's trailing `click` be ignored, then clear the flag next tick.
+    clearJustDraggedSoon();
+
     const { active, over } = event;
     if (!projects || !over || active.id === over.id) {
       return;
@@ -151,7 +180,9 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          onDragCancel={clearJustDraggedSoon}
         >
           <SortableContext
             items={projects.map((project) => project.id)}
@@ -165,7 +196,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
                   key={project.id}
                   project={project}
                   isSelected={project.id === selectedProjectId}
-                  onSelect={() => onSelectProject(project.id)}
+                  onSelect={() => handleSelectProject(project.id)}
                 />
               ))}
             </ul>
