@@ -18,17 +18,16 @@ import { z } from "zod";
 const ProjectResponse = z.object({
   id: z.number().int(),
   name: z.string(),
-  description: z.string().nullish(),
   order: z.number().int(),
 });
 const CreateProjectRequest = z
-  .object({ name: z.string().nullable(), description: z.string().nullable() })
+  .object({ name: z.string().nullable() })
   .partial();
 const ReorderProjectsRequest = z.object({
   orderedProjectIds: z.array(z.number().int()),
 });
 const UpdateProjectRequest = z
-  .object({ name: z.string().nullable(), description: z.string().nullable() })
+  .object({ name: z.string().nullable() })
   .partial();
 const TaskResponse = z.object({
   id: z.number().int(),

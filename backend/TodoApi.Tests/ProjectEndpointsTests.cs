@@ -77,13 +77,11 @@ public class ProjectEndpointsTests : IDisposable
         var createResponse = await client.PostAsJsonAsync("/api/projects", new CreateProjectRequest
         {
             Name = "Groceries",
-            Description = "Weekly shopping list",
         });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var created = await createResponse.Content.ReadFromJsonAsync<ProjectResponse>();
         Assert.NotNull(created);
         Assert.Equal("Groceries", created!.Name);
-        Assert.Equal("Weekly shopping list", created.Description);
         Assert.True(created.Id > 0);
 
         // List
@@ -97,13 +95,11 @@ public class ProjectEndpointsTests : IDisposable
         var updateResponse = await client.PutAsJsonAsync($"/api/projects/{created.Id}", new UpdateProjectRequest
         {
             Name = "Groceries & Household",
-            Description = "Updated list",
         });
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         var updated = await updateResponse.Content.ReadFromJsonAsync<ProjectResponse>();
         Assert.NotNull(updated);
         Assert.Equal("Groceries & Household", updated!.Name);
-        Assert.Equal("Updated list", updated.Description);
         Assert.Equal(created.Id, updated.Id);
 
         // Delete
@@ -125,7 +121,7 @@ public class ProjectEndpointsTests : IDisposable
         int taskId;
         using (var db = CreateDirectDbContext())
         {
-            var inbox = new Project { Name = "Inbox", Description = null, Order = 0 };
+            var inbox = new Project { Name = "Inbox", Order = 0 };
             db.Projects.Add(inbox);
             db.SaveChanges();
             inboxId = inbox.Id;
@@ -163,7 +159,7 @@ public class ProjectEndpointsTests : IDisposable
         int task2Id;
         using (var db = CreateDirectDbContext())
         {
-            var project = new Project { Name = "Home Renovation", Description = null, Order = 0 };
+            var project = new Project { Name = "Home Renovation", Order = 0 };
             db.Projects.Add(project);
             db.SaveChanges();
             projectId = project.Id;
@@ -197,7 +193,6 @@ public class ProjectEndpointsTests : IDisposable
         var response = await client.PostAsJsonAsync("/api/projects", new CreateProjectRequest
         {
             Name = "",
-            Description = "Doesn't matter",
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -211,28 +206,9 @@ public class ProjectEndpointsTests : IDisposable
         var response = await client.PostAsJsonAsync("/api/projects", new CreateProjectRequest
         {
             Name = new string('a', 201),
-            Description = null,
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreatingProjectWithDescriptionExceeding2000Characters_Returns400ValidationError()
-    {
-        var client = _factory.CreateClient();
-
-        var response = await client.PostAsJsonAsync("/api/projects", new CreateProjectRequest
-        {
-            Name = "Some project",
-            Description = new string('a', 2001),
-        });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-
-        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-        Assert.NotNull(problem);
-        Assert.Contains("Description", problem!.Errors.Keys);
     }
 
     // The test database is migrated + seeded on startup, so a few projects already exist. These

@@ -19,7 +19,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Project>(entity =>
         {
             entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
-            entity.Property(p => p.Description).HasMaxLength(2000);
         });
 
         // SQLite has no datetime column type, so EF stores DateTimes as bare text and reads them

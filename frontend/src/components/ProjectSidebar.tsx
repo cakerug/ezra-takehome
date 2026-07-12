@@ -23,7 +23,6 @@ import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
-import { Dialog } from './Dialog';
 import { NewProjectForm } from './NewProjectForm';
 
 /** `null` means no project is currently selected. There is no longer a special "default" project:
@@ -97,7 +96,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
     queryFn: listProjects,
   });
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const sensors = useSensors(
     // The whole row is the drag surface and is also a click-to-select button, so a small movement
@@ -168,21 +167,21 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
         </DndContext>
       )}
 
-      <button
-        type="button"
-        className="btn btn--secondary project-sidebar__create-button"
-        onClick={() => setIsCreateDialogOpen(true)}
-      >
-        + Create new project
-      </button>
-
-      {isCreateDialogOpen && (
-        <Dialog title="New project" onClose={() => setIsCreateDialogOpen(false)}>
-          <NewProjectForm
-            onCreated={() => setIsCreateDialogOpen(false)}
-            onCancel={() => setIsCreateDialogOpen(false)}
-          />
-        </Dialog>
+      {isCreatingProject ? (
+        // Rendered inline in the sidebar (mirrors TaskList's inline NewTaskForm). Closes on
+        // successful create or Cancel; the form itself handles Escape-to-discard.
+        <NewProjectForm
+          onCreated={() => setIsCreatingProject(false)}
+          onCancel={() => setIsCreatingProject(false)}
+        />
+      ) : (
+        <button
+          type="button"
+          className="btn btn--secondary project-sidebar__create-button"
+          onClick={() => setIsCreatingProject(true)}
+        >
+          + Add project
+        </button>
       )}
     </nav>
   );
@@ -193,20 +192,15 @@ interface EditProjectFormProps {
   onDone: () => void;
 }
 
-/** Name + description edit form. Opened from the content-area header's "…" menu (next to the
- * project title), rendered inside a `Dialog`. Field-validation failures render inline; any other
- * failure surfaces in the app-level toast (via `showErrorToast`). */
+/** Name edit form. Opened from the content-area header's "…" menu (next to the project title),
+ * rendered inside a `Dialog`. Field-validation failures render inline; any other failure surfaces
+ * in the app-level toast (via `showErrorToast`). */
 export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(project.name);
-  const [description, setDescription] = useState(project.description ?? '');
 
   const mutation = useMutation({
-    mutationFn: () =>
-      updateProject(project.id, {
-        name,
-        ...(description.trim() ? { description } : {}),
-      }),
+    mutationFn: () => updateProject(project.id, { name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       onDone();
@@ -238,14 +232,6 @@ export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-        />
-      </label>
-      <label className="edit-project-form__field">
-        <span>Description</span>
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={2}
         />
       </label>
       {errorMessage && <p className="edit-project-form__error">{errorMessage}</p>}

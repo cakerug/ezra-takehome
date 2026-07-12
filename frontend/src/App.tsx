@@ -57,9 +57,6 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
           ]}
         />
       </div>
-      {selectedProject.description && (
-        <p className="content__description">{selectedProject.description}</p>
-      )}
       <TaskList projectId={selectedProject.id} />
 
       {isEditOpen && (

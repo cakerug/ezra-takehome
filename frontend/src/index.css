@@ -188,13 +188,6 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
-.content__description {
-  margin: 0 0 4px;
-  color: var(--text-muted);
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-
 .content__empty {
   color: var(--text-muted);
   font-size: 14px;
@@ -281,15 +274,6 @@ button:disabled {
   gap: 8px;
 }
 
-.edit-project-form {
-  margin-top: 4px;
-  padding: 8px;
-  border-top: none;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-
 .new-project-form__heading {
   font-size: 13px;
   text-transform: uppercase;
@@ -337,6 +321,12 @@ button:disabled {
 .project-sidebar__create-button {
   margin-top: 16px;
   width: 100%;
+}
+
+/* The inline create form replaces the create button in place; keep the same separation from the
+   project list above it. */
+.project-sidebar > .new-project-form {
+  margin-top: 16px;
 }
 
 .dialog__overlay {
