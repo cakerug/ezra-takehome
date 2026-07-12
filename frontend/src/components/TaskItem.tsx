@@ -134,9 +134,12 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
     },
   });
 
-  // Both "move to project" and delete now live in the row's "…" menu. The move targets are only
-  // included when there's somewhere to move to (i.e. more than one project exists).
+  // Edit, "move to project", and delete all live in the row's "…" menu. Edit opens the same detail
+  // dialog as clicking the row body. The move targets are only included when there's somewhere to
+  // move to (i.e. more than one project exists).
   const menuItems: ActionMenuEntry[] = [
+    { label: 'Edit', onSelect: () => setIsDetailOpen(true) },
+    { separator: true } as const,
     ...(otherProjects.length > 0
       ? [
           { heading: 'Move to' } as const,
