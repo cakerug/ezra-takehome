@@ -699,15 +699,22 @@ button:disabled {
 }
 
 /* --- Task detail view (opened by clicking a task row) --- */
-/* The dialog gets wider than the default modal to fit the editing body + actions sidebar. */
-.dialog:has(.task-detail) {
-  max-width: 640px;
-}
-
 .task-detail {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 16px;
+  /* Leaves room so the top-right "…" menu (absolutely positioned below) doesn't sit on top of the
+     title input. */
+  padding-right: 28px;
+}
+
+/* Top-right "…" overflow menu (move-to-project + delete). Unlike `TaskItem`'s hover-reveal menu,
+   this one is always visible -- there's no "row" to hover in a dialog. */
+.task-detail__menu {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 /* Left column: title/description editing buffer + Save/Close actions. */
@@ -727,6 +734,7 @@ button:disabled {
 
 .task-detail__checkbox {
   flex-shrink: 0;
+  width: 16px;
   margin-top: 10px;
 }
 
@@ -750,6 +758,10 @@ button:disabled {
 }
 
 .task-detail__description-input {
+  /* Lines the textarea's left edge up with the title input's left edge (rather than the
+     checkbox's), by offsetting past the checkbox's width (16px) + the header's gap (8px). */
+  width: calc(100% - 24px);
+  margin-left: 24px;
   font-size: 14px;
   resize: vertical;
 }
@@ -784,67 +796,4 @@ button:disabled {
   color: var(--danger);
   font-size: 13px;
   margin: 0;
-}
-
-/* Right column: the same secondary actions as the row's "…" menu, always visible here. */
-.task-detail__sidebar {
-  flex-shrink: 0;
-  width: 160px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-left: 16px;
-  border-left: 1px solid var(--border);
-}
-
-.task-detail__sidebar-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.task-detail__sidebar-heading {
-  margin: 0 0 4px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-.task-detail__sidebar-item {
-  border: none;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  font: inherit;
-  font-size: 13px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.task-detail__sidebar-item:hover:not(:disabled) {
-  background: var(--border);
-}
-
-.task-detail__sidebar-item--danger {
-  color: var(--danger);
-}
-
-/* On narrow viewports, stack the sidebar below the body so the dialog doesn't overflow. */
-@media (max-width: 560px) {
-  .task-detail {
-    flex-direction: column;
-  }
-
-  .task-detail__sidebar {
-    width: auto;
-    padding-left: 0;
-    padding-top: 12px;
-    border-left: none;
-    border-top: 1px solid var(--border);
-  }
 }

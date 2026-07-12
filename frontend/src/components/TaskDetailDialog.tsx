@@ -10,12 +10,13 @@ import {
 import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
+import { ActionMenu, type ActionMenuEntry } from './ActionMenu';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Dialog } from './Dialog';
 
 interface TaskDetailDialogProps {
   task: TaskResponse;
-  /** All projects other than the task's own, powering the sidebar's "Move to project" list. */
+  /** All projects other than the task's own, powering the "…" menu's "Move to" list. */
   otherProjects: ProjectResponse[];
   onClose: () => void;
 }
@@ -34,10 +35,11 @@ interface TaskDetailDialogProps {
  * read-only and Save is hidden, but the complete/uncomplete checkbox still works so the user can
  * reopen the task and then edit it. Complete/uncomplete is a separate, un-buffered mutation.
  *
- * The right-hand sidebar surfaces the same secondary actions as the row's "…" menu -- move to
- * another project and delete -- so they're reachable without hunting through a menu. Both mirror
- * `TaskItem`'s mutations (move does the dual-project invalidation; delete is gated by a
- * `ConfirmDialog`) and close the dialog once they land.
+ * A top-right "…" `ActionMenu` surfaces the same secondary actions as the row's own overflow menu
+ * -- move to another project and delete -- mirroring `TaskItem`'s menu construction exactly (move
+ * does the dual-project invalidation; delete is gated by a `ConfirmDialog`) and closing the dialog
+ * once they land. Unlike the row's menu, this one isn't gated by `isLocked`: move/delete stay
+ * available even on a completed (locked) task, matching the old sidebar's behavior.
  */
 export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDialogProps) {
   const queryClient = useQueryClient();
@@ -125,9 +127,29 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
 
   const inlineError = extractFieldErrors(updateMutation.error);
 
+  // Move/delete now live in the top-right "…" menu, mirroring `TaskItem`'s menu construction.
+  const menuItems: ActionMenuEntry[] = [
+    ...(otherProjects.length > 0
+      ? [
+          { heading: 'Move to' } as const,
+          ...otherProjects.map((project) => ({
+            label: project.name,
+            onSelect: () => moveMutation.mutate(project.id),
+          })),
+          { separator: true } as const,
+        ]
+      : []),
+    { label: 'Delete', danger: true, onSelect: () => setIsConfirmingDelete(true) },
+  ];
+
   return (
     <Dialog ariaLabel={`Task: ${task.title}`} onClose={requestClose}>
       <div className="task-detail">
+        <ActionMenu
+          buttonLabel={`More actions for "${task.title}"`}
+          items={menuItems}
+          className="task-detail__menu"
+        />
         <div className="task-detail__main">
           <div className="task-detail__header">
             <input
@@ -189,34 +211,6 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
             )}
           </div>
         </div>
-
-        <aside className="task-detail__sidebar" aria-label="Task actions">
-          {otherProjects.length > 0 && (
-            <div className="task-detail__sidebar-group">
-              <p className="task-detail__sidebar-heading">Move to project</p>
-              {otherProjects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  className="task-detail__sidebar-item"
-                  onClick={() => moveMutation.mutate(project.id)}
-                  disabled={moveMutation.isPending}
-                >
-                  {project.name}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="task-detail__sidebar-group">
-            <button
-              type="button"
-              className="task-detail__sidebar-item task-detail__sidebar-item--danger"
-              onClick={() => setIsConfirmingDelete(true)}
-            >
-              Delete
-            </button>
-          </div>
-        </aside>
       </div>
 
       {isConfirmingDiscard && (
