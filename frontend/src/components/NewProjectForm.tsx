@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createProject } from '../api/client';
 import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface NewProjectFormProps {
   /** Called after the project is successfully created, e.g. so the caller can close its dialog. */
@@ -17,6 +18,9 @@ interface NewProjectFormProps {
  * plan's pessimistic-update rule, the new project only appears once the server has confirmed it,
  * not optimistically.
  *
+ * Rendered inline in the sidebar (mirrors `NewTaskForm`): it autofocuses its name field on open and
+ * Escape closes it, prompting via the shared `ConfirmDialog` when there is unsaved content to lose.
+ *
  * Field-validation failures render inline below; any other failure surfaces in the app-level
  * toast (via `showErrorToast`).
  */
@@ -24,6 +28,40 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the name on open so the user can start typing immediately.
+  useEffect(() => {
+    nameInputRef.current?.focus();
+  }, []);
+
+  const isDirty = name.trim().length > 0 || description.trim().length > 0;
+
+  // Escape hides the form immediately when it's empty (same as Cancel), but -- unlike Cancel, which
+  // intentionally stays a no-confirmation discard -- prompts via the shared ConfirmDialog when
+  // there's content to lose. Mirrors NewTaskForm's Escape/isDirty pattern.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (isDirty) {
+        setIsConfirmingDiscard(true);
+      } else {
+        onCancel?.();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDirty, onCancel]);
+
+  function handleDiscard() {
+    setIsConfirmingDiscard(false);
+    setName('');
+    setDescription('');
+    onCancel?.();
+  }
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -56,6 +94,7 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
       <label className="new-project-form__field">
         <span>Name</span>
         <input
+          ref={nameInputRef}
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -90,6 +129,17 @@ export function NewProjectForm({ onCreated, onCancel }: NewProjectFormProps) {
           {mutation.isPending ? 'Creating…' : 'Add project'}
         </button>
       </div>
+
+      {isConfirmingDiscard && (
+        <ConfirmDialog
+          title="Discard new project?"
+          message="You have unsaved changes. Closing now will discard them."
+          confirmLabel="Discard"
+          cancelLabel="Keep editing"
+          onConfirm={handleDiscard}
+          onCancel={() => setIsConfirmingDiscard(false)}
+        />
+      )}
     </form>
   );
 }

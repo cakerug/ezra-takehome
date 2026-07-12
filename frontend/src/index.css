@@ -339,6 +339,12 @@ button:disabled {
   width: 100%;
 }
 
+/* The inline create form replaces the create button in place; keep the same separation from the
+   project list above it. */
+.project-sidebar > .new-project-form {
+  margin-top: 16px;
+}
+
 .dialog__overlay {
   position: fixed;
   inset: 0;

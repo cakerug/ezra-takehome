@@ -105,11 +105,10 @@ describe('ProjectSidebar', () => {
     await screen.findByText('Inbox');
 
     await user.click(screen.getByRole('button', { name: '+ Create new project' }));
-    const dialog = await screen.findByRole('dialog', { name: 'New project' });
 
-    await user.type(within(dialog).getByLabelText('Name'), 'Groceries');
-    await user.type(within(dialog).getByLabelText('Description'), 'Buy milk');
-    await user.click(within(dialog).getByRole('button', { name: 'Add project' }));
+    await user.type(screen.getByLabelText('Name'), 'Groceries');
+    await user.type(screen.getByLabelText('Description'), 'Buy milk');
+    await user.click(screen.getByRole('button', { name: 'Add project' }));
 
     await waitFor(() => {
       expect(mockCreateProject).toHaveBeenCalledWith({
@@ -120,8 +119,9 @@ describe('ProjectSidebar', () => {
 
     expect(await screen.findByText('Groceries')).toBeInTheDocument();
     expect(mockListProjects).toHaveBeenCalledTimes(2);
-    // The dialog closes itself after a successful creation.
-    expect(screen.queryByRole('dialog', { name: 'New project' })).not.toBeInTheDocument();
+    // The inline form closes itself after a successful creation, so the create button returns.
+    expect(screen.getByRole('button', { name: '+ Create new project' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   });
 
   it('shows a server-side validation error inline on the new-project form, and does not trigger the Toast', async () => {
@@ -140,10 +140,9 @@ describe('ProjectSidebar', () => {
     await screen.findByText('Inbox');
 
     await user.click(screen.getByRole('button', { name: '+ Create new project' }));
-    const dialog = await screen.findByRole('dialog', { name: 'New project' });
 
-    await user.type(within(dialog).getByLabelText('Name'), 'A'.repeat(101));
-    await user.click(within(dialog).getByRole('button', { name: 'Add project' }));
+    await user.type(screen.getByLabelText('Name'), 'A'.repeat(101));
+    await user.click(screen.getByRole('button', { name: 'Add project' }));
 
     await waitFor(() => {
       expect(mockCreateProject).toHaveBeenCalled();

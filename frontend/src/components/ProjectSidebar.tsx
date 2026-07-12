@@ -23,7 +23,6 @@ import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse } from '../api/generated-schemas';
 import { ConfirmDialog } from './ConfirmDialog';
-import { Dialog } from './Dialog';
 import { NewProjectForm } from './NewProjectForm';
 
 /** `null` means no project is currently selected. There is no longer a special "default" project:
@@ -97,7 +96,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
     queryFn: listProjects,
   });
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const sensors = useSensors(
     // The whole row is the drag surface and is also a click-to-select button, so a small movement
@@ -168,21 +167,21 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
         </DndContext>
       )}
 
-      <button
-        type="button"
-        className="btn btn--secondary project-sidebar__create-button"
-        onClick={() => setIsCreateDialogOpen(true)}
-      >
-        + Create new project
-      </button>
-
-      {isCreateDialogOpen && (
-        <Dialog title="New project" onClose={() => setIsCreateDialogOpen(false)}>
-          <NewProjectForm
-            onCreated={() => setIsCreateDialogOpen(false)}
-            onCancel={() => setIsCreateDialogOpen(false)}
-          />
-        </Dialog>
+      {isCreatingProject ? (
+        // Rendered inline in the sidebar (mirrors TaskList's inline NewTaskForm). Closes on
+        // successful create or Cancel; the form itself handles Escape-to-discard.
+        <NewProjectForm
+          onCreated={() => setIsCreatingProject(false)}
+          onCancel={() => setIsCreatingProject(false)}
+        />
+      ) : (
+        <button
+          type="button"
+          className="btn btn--secondary project-sidebar__create-button"
+          onClick={() => setIsCreatingProject(true)}
+        >
+          + Create new project
+        </button>
       )}
     </nav>
   );
