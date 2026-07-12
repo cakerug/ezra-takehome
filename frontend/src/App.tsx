@@ -11,6 +11,16 @@ import {
 } from './components/ProjectSidebar';
 import { TaskList } from './components/TaskList';
 
+function SidebarIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 4H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M2 8H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M2 12H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProjectId }) {
   // Shares the `['projects']` query cache with ProjectSidebar/App, so this doesn't trigger an
   // extra network request.
@@ -77,6 +87,7 @@ function App() {
   // and ease of understanding) and then even zustand or redux (for more selective state updates and
   // thus fewer re-renders)
   const [selectedProjectId, setSelectedProjectId] = useState<SelectedProjectId>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Shares the ['projects'] cache with ProjectSidebar/ContentArea, so this adds no extra request.
   const { data: projects } = useQuery({
@@ -94,12 +105,35 @@ function App() {
     : (projects?.[0]?.id ?? null);
 
   return (
-    <div className="layout">
+    <div className={isSidebarCollapsed ? 'layout layout--sidebar-collapsed' : 'layout'}>
       <aside className="layout__sidebar">
-        <ProjectSidebar
-          selectedProjectId={effectiveProjectId}
-          onSelectProject={setSelectedProjectId}
-        />
+        {isSidebarCollapsed ? (
+          <button
+            type="button"
+            className="layout__sidebar-toggle layout__sidebar-toggle--icon"
+            onClick={() => setIsSidebarCollapsed(false)}
+            aria-label="Expand projects sidebar"
+            title="Main menu"
+          >
+            <SidebarIcon />
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="layout__sidebar-toggle"
+              onClick={() => setIsSidebarCollapsed(true)}
+              aria-label="Collapse projects sidebar"
+              aria-expanded="true"
+            >
+              «
+            </button>
+            <ProjectSidebar
+              selectedProjectId={effectiveProjectId}
+              onSelectProject={setSelectedProjectId}
+            />
+          </>
+        )}
       </aside>
       <main className="layout__content">
         <ContentArea selectedProjectId={effectiveProjectId} />
