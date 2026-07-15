@@ -104,10 +104,11 @@ app.UseSecurityHeaders(securityHeadersPolicies);
 
 app.UseCors(FrontendCorsPolicy);
 
-// Enabled unconditionally (not gated behind IsDevelopment()): for this small MVP, Swagger being
-// reachable is itself a requirement (R12), not just a dev convenience.
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Correlation-ID middleware runs first so the correlation ID is established (and attached to
 // the logging scope) before anything else in the pipeline — including the exception handler —
