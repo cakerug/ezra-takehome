@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NetEscapades.AspNetCore.SecurityHeaders;
 using TodoApi.Data;
@@ -35,6 +37,32 @@ var securityHeadersPolicies = new HeaderPolicyCollection()
 // or wildcard origin needed.
 var frontendOrigins = (builder.Configuration["FrontendOrigins"] ?? "http://localhost:5173")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+// Fixed-window: simplest and cheapest of the built-in algorithms (fixed window, sliding window,
+// token bucket, concurrency). Sliding window would smooth out the boundary-burst behavior fixed
+// window has, but that smoothing is overkill for this app's traffic pattern (a handful of CRUD
+// endpoints, no public/adversarial traffic). Token bucket — which allows bursts up to a capacity
+// while enforcing a long-run average — could make sense for a bulk-import-style endpoint, but
+// that's a different endpoint shape than what exists here.
+//
+// This limiter is in-memory and per-process. In a horizontally-scaled deployment (multiple
+// backend instances behind a load balancer), each instance would enforce its own limit
+// independently, so the effective limit multiplies with instance count. A production system at
+// that scale would centralize counters in a shared store (e.g. Redis) or enforce the limit at
+// the load balancer / API gateway instead of in-process.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+});
 
 builder.Services.AddCors(options =>
 {
@@ -87,6 +115,7 @@ app.UseSwaggerUI();
 // later middleware or endpoints is still caught and logged with that same correlation ID.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseRateLimiter();
 
 // Liveness probe for uptime checks / container orchestrators. Cheap production-readiness signal;
 // returns 200 "Healthy" without touching the database.
