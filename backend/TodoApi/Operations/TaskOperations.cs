@@ -3,7 +3,6 @@ using TodoApi.Data;
 using TodoApi.Dtos;
 using TodoApi.Exceptions;
 using TodoApi.Models;
-using TodoApi.Validation;
 
 namespace TodoApi.Operations;
 
@@ -15,8 +14,6 @@ namespace TodoApi.Operations;
 /// </summary>
 public static class TaskOperations
 {
-    private const int TitleMaxLength = 200;
-    private const int DescriptionMaxLength = 2000;
 
     public static async Task<List<TaskResponse>> ListByProjectAsync(AppDbContext db, int projectId)
     {
@@ -33,9 +30,6 @@ public static class TaskOperations
 
     public static async Task<TaskResponse> CreateAsync(AppDbContext db, int projectId, CreateTaskRequest request)
     {
-        FieldValidation.EnsureRequiredWithMaxLength(request.Title, TitleMaxLength, "Title");
-        FieldValidation.EnsureMaxLength(request.Description, DescriptionMaxLength, "Description");
-
         await EnsureProjectExistsAsync(db, projectId);
 
         var nextOrder = await NextOrderForProjectAsync(db, projectId);
@@ -59,9 +53,6 @@ public static class TaskOperations
 
     public static async Task<TaskResponse> UpdateAsync(AppDbContext db, int id, UpdateTaskRequest request)
     {
-        FieldValidation.EnsureRequiredWithMaxLength(request.Title, TitleMaxLength, "Title");
-        FieldValidation.EnsureMaxLength(request.Description, DescriptionMaxLength, "Description");
-
         var task = await FindTaskOrThrowAsync(db, id);
 
         // A completed task is locked for editing; the client must reopen it (uncomplete) first.

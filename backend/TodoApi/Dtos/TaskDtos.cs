@@ -1,14 +1,19 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace TodoApi.Dtos;
 
 /// <summary>
 /// Request body for creating a new task within a project (project comes from the route).
-/// <see cref="Operations.TaskOperations.CreateAsync"/> validates <see cref="Title"/> (required,
-/// max 200 chars) and <see cref="Description"/> (optional, max 2000 chars) before persisting.
+/// <see cref="Title"/> and <see cref="Description"/> are validated via DataAnnotations
+/// attributes, enforced by the Minimal API validation filter (see Program.cs's AddValidation
+/// call) before the handler runs.
 /// </summary>
 public class CreateTaskRequest
 {
+    [Required, MaxLength(200)]
     public string? Title { get; set; }
 
+    [MaxLength(2000)]
     public string? Description { get; set; }
 }
 
@@ -18,8 +23,10 @@ public class CreateTaskRequest
 /// </summary>
 public class UpdateTaskRequest
 {
+    [Required, MaxLength(200)]
     public string? Title { get; set; }
 
+    [MaxLength(2000)]
     public string? Description { get; set; }
 }
 

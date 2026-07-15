@@ -26,6 +26,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SupportNonNullableReferenceTypes());
 builder.Services.AddHealthChecks();
 
+// Native Minimal API DataAnnotations validation (new in .NET 10). Runs as an endpoint filter
+// before the handler executes, short-circuiting with its own 400 response — it does NOT throw,
+// so ExceptionHandlingMiddleware never sees these failures. AddProblemDetails routes that
+// response through IProblemDetailsService instead, aligning its Content-Type/status with
+// ExceptionHandlingMiddleware's hand-thrown ValidationException path; CustomizeProblemDetails
+// adds the one field (Instance) that service doesn't set by default.
+builder.Services.AddValidation();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        ctx.ProblemDetails.Instance = ctx.HttpContext.Request.Path;
+    };
+});
+
 var securityHeadersPolicies = new HeaderPolicyCollection()
     .AddDefaultSecurityHeaders()
     .AddContentSecurityPolicy(csp => csp.AddDefaultSrc().Self());
