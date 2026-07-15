@@ -136,6 +136,30 @@ Decided on a BEM (Block-Element-Modifier) style system because it's simple and w
 I did not include any client-side logging in prod — I would add Sentry at scale.
 - AI did not support error handling very well — printing the output directly to the user. I added a better error view rather than printing output, and logged to the console in a dev env.
 
+## At scale
+
+The intro above names three axes to evaluate scale at — users, product surface area, developer team — and that framing is what organizes this section: each item below is really answering "what breaks first, and along which axis." Grounded against what's actually in the repo today (confirmed by reading the code, not assumed): no auth/authorization exists yet, no endpoint paginates its results, and the DB provider is SQLite (`UseSqlite` in `Program.cs`).
+
+### Frontend at scale
+
+- **Routing.** There's no router today — `App.tsx` is the whole app. Multiple views/pages (surface area) would need react-router (or similar), which also forces a decision on how `ProjectSidebar`/`TaskList` state relates to URL state.
+- **Folder structure.** Flat `components/` won't hold up past a handful of features (surface area + team). Move to feature-colocated folders (e.g. `features/tasks/`, `features/projects/`) grouping components + hooks + api calls together, rather than the current `api/` vs `components/` split.
+- **Schema/type generation.** `api/schema.ts` + `api/types.ts` being hand-maintained is fine at 2 entities; past that (surface area), generate types from the backend's OpenAPI spec so frontend/backend contracts can't silently drift, rather than relying on the manual zod types kept in sync by hand today.
+- **List rendering.** `TaskList` with unbounded tasks needs pagination or virtualization once a project has hundreds of tasks (users/data volume) — ties directly to backend pagination below; the two have to land together since virtualizing a client-side list that already fetched everything doesn't solve the underlying transfer/query cost.
+- **Client state.** If forms/interactions grow beyond a few components (surface area), ad hoc `useState` lifted through props gets unwieldy — reach for context or a small store (Zustand) rather than prop drilling. Kept deliberately out of scope today per the State management decision above; this is the trigger for revisiting it.
+- **Test structure.** Component tests (`*.test.tsx`) only cover so much — add an e2e layer (Playwright) once there are multi-step flows worth protecting end-to-end (surface area + team, so regressions across features are caught before review rather than by a human clicking through).
+
+### Backend at scale
+
+- **Auth/authorization.** The biggest gap — there's currently none. Any real multi-user scaling (users) requires this before anything else, and it reshapes `Operations/` (ownership checks) and `Endpoints/` (auth middleware/policies). Everything else in this list assumes single-tenant until this lands.
+- **Pagination.** Endpoints return full collections with no `Skip`/`Take`. Needed as soon as task/project counts grow (users/data volume) — also unblocks the frontend virtualization item above.
+- **Database.** SQLite is fine for a single-writer local app; scaling concurrent writers/traffic (users) means moving to Postgres (or similar) — mostly a connection-string + provider swap given EF Core is already the abstraction, but migrations should be re-validated against the new provider rather than assumed to carry over cleanly.
+- **Operations layer.** `Operations/ProjectOperations.cs`/`TaskOperations.cs` currently sit close to endpoints; at scale (team + surface area) this is where you'd introduce interfaces (repository/service pattern) so they're mockable and swappable, since tests currently exercise a real (in-memory) DbContext directly.
+- **Observability.** The correlation-ID middleware is a good start for tracing a single request through logs, but scaling (users + team) means adding metrics/tracing on top of that so slow endpoints are diagnosable in production rather than only reconstructable after the fact from logs.
+- **Rate limiting / API versioning.** Not needed for a single internal client today, but become relevant once there's an external or multi-client consumer (surface area) — the same reasoning that keeps API Versioning deliberately unversioned above, just revisited once that assumption stops holding.
+
+The common thread: right now both sides are "single-user, single-view, small dataset" shaped, so scaling isn't one change but three separable tracks — **more data** (pagination/virtualization), **more users** (auth), and **more surface area** (routing, feature folders, service layer). Which one actually shows up first should decide what gets built first, rather than building all of it speculatively now — the same over-engineering pitfall named in the intro.
+
 # Uncategorized
 
 ## Process / meta-criteria coverage
