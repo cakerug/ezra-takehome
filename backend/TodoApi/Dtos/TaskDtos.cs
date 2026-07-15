@@ -4,8 +4,9 @@ namespace TodoApi.Dtos;
 
 /// <summary>
 /// Request body for creating a new task within a project (project comes from the route).
-/// <see cref="Title"/> and <see cref="Description"/> are validated via <see cref="AddValidation"/>
-/// attributes, enforced by the Minimal API validation filter before the handler runs.
+/// <see cref="Title"/> and <see cref="Description"/> are validated via DataAnnotations
+/// attributes, enforced by the Minimal API validation filter (see Program.cs's AddValidation
+/// call) before the handler runs.
 /// </summary>
 public class CreateTaskRequest
 {
