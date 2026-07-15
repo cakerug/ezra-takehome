@@ -3,7 +3,6 @@ using TodoApi.Data;
 using TodoApi.Dtos;
 using TodoApi.Exceptions;
 using TodoApi.Models;
-using TodoApi.Validation;
 
 namespace TodoApi.Operations;
 
@@ -15,7 +14,6 @@ namespace TodoApi.Operations;
 /// </summary>
 public static class ProjectOperations
 {
-    private const int NameMaxLength = 200;
 
     public static async Task<List<ProjectResponse>> ListAsync(AppDbContext db)
     {
@@ -29,8 +27,6 @@ public static class ProjectOperations
 
     public static async Task<ProjectResponse> CreateAsync(AppDbContext db, CreateProjectRequest request)
     {
-        FieldValidation.EnsureRequiredWithMaxLength(request.Name, NameMaxLength, "Name");
-
         var nextOrder = await NextOrderAsync(db);
 
         var project = new Project
@@ -47,8 +43,6 @@ public static class ProjectOperations
 
     public static async Task<ProjectResponse> UpdateAsync(AppDbContext db, int id, UpdateProjectRequest request)
     {
-        FieldValidation.EnsureRequiredWithMaxLength(request.Name, NameMaxLength, "Name");
-
         var project = await db.Projects.FindAsync(id)
             ?? throw new NotFoundException($"Project with id {id} was not found.");
 

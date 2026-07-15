@@ -26,6 +26,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SupportNonNullableReferenceTypes());
 builder.Services.AddHealthChecks();
 
+// Native Minimal API DataAnnotations validation (new in .NET 10). Runs as an endpoint filter
+// before the handler executes, short-circuiting with its own 400 response — it does NOT throw,
+// so ExceptionHandlingMiddleware never sees these failures.
+builder.Services.AddValidation();
+
 var securityHeadersPolicies = new HeaderPolicyCollection()
     .AddDefaultSecurityHeaders()
     .AddContentSecurityPolicy(csp => csp.AddDefaultSrc().Self());
@@ -116,6 +121,7 @@ if (app.Environment.IsDevelopment())
 // later middleware or endpoints is still caught and logged with that same correlation ID.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<ValidationProblemNormalizationMiddleware>();
 app.UseRateLimiter();
 
 // Liveness probe for uptime checks / container orchestrators. Cheap production-readiness signal;
