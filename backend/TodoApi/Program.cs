@@ -28,8 +28,18 @@ builder.Services.AddHealthChecks();
 
 // Native Minimal API DataAnnotations validation (new in .NET 10). Runs as an endpoint filter
 // before the handler executes, short-circuiting with its own 400 response — it does NOT throw,
-// so ExceptionHandlingMiddleware never sees these failures.
+// so ExceptionHandlingMiddleware never sees these failures. AddProblemDetails routes that
+// response through IProblemDetailsService instead, aligning its Content-Type/status with
+// ExceptionHandlingMiddleware's hand-thrown ValidationException path; CustomizeProblemDetails
+// adds the one field (Instance) that service doesn't set by default.
 builder.Services.AddValidation();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        ctx.ProblemDetails.Instance = ctx.HttpContext.Request.Path;
+    };
+});
 
 var securityHeadersPolicies = new HeaderPolicyCollection()
     .AddDefaultSecurityHeaders()
@@ -121,7 +131,6 @@ if (app.Environment.IsDevelopment())
 // later middleware or endpoints is still caught and logged with that same correlation ID.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseMiddleware<ValidationProblemNormalizationMiddleware>();
 app.UseRateLimiter();
 
 // Liveness probe for uptime checks / container orchestrators. Cheap production-readiness signal;
