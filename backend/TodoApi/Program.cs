@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NetEscapades.AspNetCore.SecurityHeaders;
 using TodoApi.Data;
 using TodoApi.Endpoints;
 using TodoApi.Middleware;
@@ -22,6 +23,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SupportNonNullableReferenceTypes());
 builder.Services.AddHealthChecks();
+
+var securityHeadersPolicies = new HeaderPolicyCollection()
+    .AddDefaultSecurityHeaders()
+    .AddContentSecurityPolicy(csp => csp.AddDefaultSrc().Self());
 
 // Origin(s) the SPA is served from, for CORS. Read from configuration (env var `FrontendOrigins`,
 // comma-separated for multiple) so the dev port isn't baked in and can be overridden per run;
@@ -67,6 +72,8 @@ using (var scope = app.Services.CreateScope())
 // CORS must run early in the pipeline — before the correlation-ID/exception-handling middleware
 // and endpoint routing — so that preflight OPTIONS requests are answered directly instead of
 // falling through to routes that don't handle OPTIONS and would otherwise 404.
+app.UseSecurityHeaders(securityHeadersPolicies);
+
 app.UseCors(FrontendCorsPolicy);
 
 // Enabled unconditionally (not gated behind IsDevelopment()): for this small MVP, Swagger being
