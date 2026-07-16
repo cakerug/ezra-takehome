@@ -17,9 +17,6 @@ namespace TodoApi.Middleware;
 ///     reorder, and delete races in one place so the operations don't each need a re-check.
 ///   - anything else -> 500, generic body only; the real exception is logged server-side and
 ///     never leaked (no stack trace, no exception message) to the client.
-///
-/// Placed after <see cref="CorrelationIdMiddleware"/> in the pipeline so that any exception
-/// logged here already has the correlation ID attached to the logging scope.
 /// </summary>
 public class ExceptionHandlingMiddleware
 {

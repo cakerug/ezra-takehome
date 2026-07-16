@@ -27,7 +27,6 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
         {
             builder.Configure(app =>
             {
-                app.UseMiddleware<TodoApi.Middleware.CorrelationIdMiddleware>();
                 app.UseMiddleware<TodoApi.Middleware.ExceptionHandlingMiddleware>();
 
                 app.UseRouting();

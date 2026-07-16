@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TodoApi.Data;
-using TodoApi.Middleware;
 
 namespace TodoApi.Tests;
 
@@ -93,7 +92,6 @@ public class ApiDocumentationAndCorsTests : IDisposable
         var request = new HttpRequestMessage(HttpMethod.Options, "/api/projects");
         request.Headers.Add("Origin", "http://localhost:5173");
         request.Headers.Add("Access-Control-Request-Method", "GET");
-        request.Headers.Add("Access-Control-Request-Headers", CorrelationIdMiddleware.HeaderName);
 
         var response = await client.SendAsync(request);
 
