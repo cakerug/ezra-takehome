@@ -31,12 +31,11 @@ interface TaskListProps {
  * scoped to the current project only (drag-and-drop across projects is out of scope; moving
  * projects is done via each `TaskItem`'s dropdown, per F1).
  *
- * Pessimistic by design: dragging computes a new local order for immediate visual feedback during
- * the gesture, but on drop it sends the full reordered id list to `reorderTasks` and adopts the
- * order only from the server's authoritative response (written into the cache on success) -- if
- * the mutation fails, the query cache (and therefore the rendered list) is untouched, so the list
- * reverts to its last-known-good order automatically, and the failure is surfaced by the app-level
- * toast (see `showErrorToast`).
+ * Optimistic reorder: on drop we write the new order into the cache immediately (so the row stays
+ * exactly where it was dropped -- no flash back to its old slot while the request is in flight),
+ * then send the full reordered id list to `reorderTasks`. The server's authoritative response
+ * reconciles the cache on success; on failure we roll the cache back to its pre-drag order and
+ * surface the error via the app-level toast (see `showErrorToast`).
  */
 export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
@@ -68,10 +67,9 @@ export function TaskList({ projectId }: TaskListProps) {
     mutationFn: (orderedTaskIds: number[]) =>
       reorderTasks(projectId, { orderedTaskIds }),
     onSuccess: (updatedTasks) => {
-      // Write the server-confirmed order straight into the cache instead of invalidating. This
-      // stays fully pessimistic (it's authoritative server data, not an optimistic guess) but
-      // avoids the extra refetch round trip -- during which the list would briefly snap back to
-      // the pre-drag order and read as a failed drag.
+      // Reconcile the optimistic order with the server's authoritative response (which also carries
+      // the server-assigned `order` values) by writing it straight into the cache instead of
+      // invalidating -- avoids an extra refetch round trip.
       queryClient.setQueryData(['tasks', projectId], updatedTasks);
     },
     onError: (error: unknown) => {
@@ -91,9 +89,23 @@ export function TaskList({ projectId }: TaskListProps) {
     }
 
     const orderedIds = computeReorderedIds(tasks, active.id, over.id);
-    if (orderedIds) {
-      reorderMutation.mutate(orderedIds);
+    if (!orderedIds) {
+      return;
     }
+
+    // Optimistically apply the new order to the cache now, synchronously, so it batches with the
+    // `setActiveId(null)` above -- the row stays where it was dropped instead of flashing back to
+    // its old slot until the server responds. `sortTasks` orders by each task's `order` field
+    // (not array position), so we reassign `order` by new index rather than just reordering the
+    // array. `onSuccess` overwrites this with the server's authoritative values; the per-drop
+    // `onError` rolls the cache back to `previous`.
+    const previous = tasks;
+    const tasksById = new Map(tasks.map((task) => [task.id, task]));
+    const reordered = orderedIds.map((id, index) => ({ ...tasksById.get(id)!, order: index }));
+    queryClient.setQueryData(['tasks', projectId], reordered);
+    reorderMutation.mutate(orderedIds, {
+      onError: () => queryClient.setQueryData(['tasks', projectId], previous),
+    });
   }
 
   if (isLoading) {

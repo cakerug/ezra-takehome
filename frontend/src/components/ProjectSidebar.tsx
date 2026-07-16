@@ -121,11 +121,11 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
 }
 
 /**
- * Project list sidebar with drag-to-reorder. Reordering is pessimistic (mirrors `TaskList`): on
- * drop it sends the full reordered id list to `reorderProjects` and adopts the order only from the
- * server's authoritative response (written into the `['projects']` cache on success). If the
- * mutation fails, the cache is untouched so the list reverts to its last-known-good order, and the
- * failure is surfaced by the app-level toast.
+ * Project list sidebar with drag-to-reorder. Reordering is optimistic (mirrors `TaskList`): on drop
+ * it writes the new order into the `['projects']` cache immediately (so the row stays where it was
+ * dropped rather than flashing back to its old slot mid-request), then sends the full reordered id
+ * list to `reorderProjects`. The server's response reconciles the cache on success; on failure the
+ * cache is rolled back to its pre-drag order and the error is surfaced by the app-level toast.
  */
 export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
   const queryClient = useQueryClient();
@@ -181,9 +181,8 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   const reorderMutation = useMutation({
     mutationFn: (orderedProjectIds: number[]) => reorderProjects({ orderedProjectIds }),
     onSuccess: (updatedProjects) => {
-      // Write the server-confirmed order straight into the cache instead of invalidating, to keep
-      // it fully pessimistic while avoiding an extra refetch round trip (during which the list
-      // would briefly snap back to the pre-drag order and read as a failed drag).
+      // Reconcile the optimistic order with the server's authoritative response by writing it
+      // straight into the cache instead of invalidating -- avoids an extra refetch round trip.
       queryClient.setQueryData(['projects'], updatedProjects);
     },
     onError: (error: unknown) => {
@@ -207,8 +206,18 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
       return;
     }
 
-    const orderedIds = arrayMove(projects, oldIndex, newIndex).map((project) => project.id);
-    reorderMutation.mutate(orderedIds);
+    // Optimistically apply the new order to the cache now, synchronously, so it batches with the
+    // `setActiveId(null)` above -- the row stays where it was dropped instead of flashing back to
+    // its old slot until the server responds. Projects render in raw cache order (no `order`-field
+    // sort, unlike tasks), so writing the reordered array is enough. `onSuccess` overwrites this
+    // with the server's authoritative order; the per-drop `onError` rolls the cache back.
+    const previous = projects;
+    const reordered = arrayMove(projects, oldIndex, newIndex);
+    queryClient.setQueryData(['projects'], reordered);
+    reorderMutation.mutate(
+      reordered.map((project) => project.id),
+      { onError: () => queryClient.setQueryData(['projects'], previous) },
+    );
   }
 
   const activeProject =
