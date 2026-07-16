@@ -236,6 +236,25 @@ public class ProjectEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task CreatedProject_RecordsCreatedAtAsUtcAndSurvivesReload()
+    {
+        var client = _factory.CreateClient();
+
+        var before = DateTime.UtcNow;
+        var created = await CreateProjectAsync(client, "Timestamped");
+        var after = DateTime.UtcNow;
+
+        Assert.InRange(created.CreatedAt, before, after);
+
+        // Re-reading matters because SQLite stores DateTimes as bare text: without the UTC value
+        // converter the reloaded value comes back Kind=Unspecified and serializes without the
+        // timezone marker the frontend's schemas require.
+        var reloaded = (await ListProjectsAsync(client)).Single(p => p.Id == created.Id);
+        Assert.Equal(DateTimeKind.Utc, reloaded.CreatedAt.Kind);
+        Assert.Equal(created.CreatedAt, reloaded.CreatedAt);
+    }
+
+    [Fact]
     public async Task FullReorderRoundTrip_ReversesTheProjectListExactly()
     {
         var client = _factory.CreateClient();

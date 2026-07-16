@@ -23,6 +23,7 @@ public static class DbSeeder
         {
             Name = "Inbox",
             Order = 0,
+            CreatedAt = now,
             Tasks = new List<TaskItem>
             {
                 new() { Title = "Welcome to your to-do app!", Order = 0, IsComplete = false, CreatedAt = now },
@@ -42,6 +43,7 @@ public static class DbSeeder
         {
             Name = "Personal",
             Order = 1,
+            CreatedAt = now,
             Tasks = new List<TaskItem>
             {
                 new() { Title = "Buy groceries", Order = 0, IsComplete = false, CreatedAt = now },
@@ -67,6 +69,7 @@ public static class DbSeeder
         {
             Name = "Work",
             Order = 2,
+            CreatedAt = now,
             Tasks = new List<TaskItem>
             {
                 new() { Title = "Prepare sprint planning notes", Order = 0, IsComplete = false, CreatedAt = now },

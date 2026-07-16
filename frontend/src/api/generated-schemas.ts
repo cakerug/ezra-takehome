@@ -19,16 +19,13 @@ const ProjectResponse = z.object({
   id: z.number().int(),
   name: z.string(),
   order: z.number().int(),
+  createdAt: z.string().datetime({ offset: true }),
 });
-const CreateProjectRequest = z
-  .object({ name: z.string().nullable() })
-  .partial();
+const CreateProjectRequest = z.object({ name: z.string().min(1).max(200) });
 const ReorderProjectsRequest = z.object({
   orderedProjectIds: z.array(z.number().int()),
 });
-const UpdateProjectRequest = z
-  .object({ name: z.string().nullable() })
-  .partial();
+const UpdateProjectRequest = z.object({ name: z.string().min(1).max(200) });
 const TaskResponse = z.object({
   id: z.number().int(),
   title: z.string(),
@@ -39,15 +36,17 @@ const TaskResponse = z.object({
   completedAt: z.string().datetime({ offset: true }).nullish(),
   createdAt: z.string().datetime({ offset: true }),
 });
-const CreateTaskRequest = z
-  .object({ title: z.string().nullable(), description: z.string().nullable() })
-  .partial();
+const CreateTaskRequest = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).nullish(),
+});
 const ReorderTasksRequest = z.object({
   orderedTaskIds: z.array(z.number().int()),
 });
-const UpdateTaskRequest = z
-  .object({ title: z.string().nullable(), description: z.string().nullable() })
-  .partial();
+const UpdateTaskRequest = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).nullish(),
+});
 const MoveTaskRequest = z.object({ targetProjectId: z.number().int() });
 
 export const schemas = {

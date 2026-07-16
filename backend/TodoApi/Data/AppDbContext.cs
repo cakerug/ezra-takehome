@@ -16,14 +16,6 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Non-nullable properties (Project.Name, TaskItem.Title, TaskItem.ProjectId) are already
-        // mapped as required by EF's nullable-reference-type convention, so IsRequired() would
-        // only restate what the property declarations say.
-        modelBuilder.Entity<Project>(entity =>
-        {
-            entity.Property(p => p.Name).HasMaxLength(FieldLengths.ProjectName);
-        });
-
         // SQLite has no datetime column type, so EF stores DateTimes as bare text and reads them
         // back with Kind=Unspecified. System.Text.Json serializes Unspecified values without a
         // timezone marker ("...T02:09:22.062052", no trailing "Z"), which fails clients that
@@ -32,6 +24,16 @@ public class AppDbContext : DbContext
         var utcDateTime = new ValueConverter<DateTime, DateTime>(
             v => v.ToUniversalTime(),
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+        // Non-nullable properties (Project.Name, TaskItem.Title, TaskItem.ProjectId) are already
+        // mapped as required by EF's nullable-reference-type convention, so IsRequired() would
+        // only restate what the property declarations say.
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.Property(p => p.Name).HasMaxLength(FieldLengths.ProjectName);
+
+            entity.Property(p => p.CreatedAt).HasConversion(utcDateTime);
+        });
 
         modelBuilder.Entity<TaskItem>(entity =>
         {

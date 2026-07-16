@@ -33,6 +33,7 @@ public static class ProjectOperations
         {
             Name = request.Name!,
             Order = nextOrder,
+            CreatedAt = DateTime.UtcNow,
         };
 
         db.Projects.Add(project);
@@ -120,6 +121,7 @@ public static class ProjectOperations
             Id = project.Id,
             Name = project.Name,
             Order = project.Order,
+            CreatedAt = project.CreatedAt,
         };
     }
 }
