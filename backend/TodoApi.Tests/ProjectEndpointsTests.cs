@@ -198,6 +198,39 @@ public class ProjectEndpointsTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // Posts anonymous objects rather than a CreateProjectRequest so the body can omit name
+    // entirely -- a case the typed DTO can't express, and one that binds differently from
+    // both an empty string and an explicit null. Name must be rejected by the validation
+    // filter (400 naming the field), not by System.Text.Json, which would surface as a 500.
+    [Fact]
+    public async Task CreatingProjectWithAbsentName_Returns400NamingName()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/projects", new { });
+
+        await AssertBadRequestNamingNameAsync(response);
+    }
+
+    [Fact]
+    public async Task CreatingProjectWithNullName_Returns400NamingName()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/projects", new { name = (string?)null });
+
+        await AssertBadRequestNamingNameAsync(response);
+    }
+
+    private static async Task AssertBadRequestNamingNameAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Contains("Name", problem!.Errors.Keys);
+    }
+
     [Fact]
     public async Task CreatingProjectWithNameExceeding200Characters_Returns400ValidationError()
     {
