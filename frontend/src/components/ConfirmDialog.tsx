@@ -57,10 +57,13 @@ export function ConfirmDialog({
     }
   }
 
-  // Portaled to <body> rather than rendered in place: the task delete confirmation is opened from
-  // inside a draggable row that has its own pointer/keyboard listeners for dnd-kit -- without a
-  // portal, e.g. pressing Space on a button here would bubble through that row's DOM subtree and
-  // could be intercepted by those listeners (read as "pick up") instead of activating the button.
+  // Portaled to <body> for layering, same as `Dialog`: the overlay must escape any ancestor
+  // `overflow` / `transform` / stacking context so it covers the viewport and sits on top. The
+  // portal is not what keeps dnd-kit out of the way -- the task delete confirm is opened from inside
+  // a draggable row, but this dialog holds only buttons (no draggable sub-elements) and the row's
+  // `PointerSensor` has an 8px activation constraint, so a click can't start a row drag. The Escape
+  // `stopPropagation` in `handleKeyDown` is the only propagation this needs, so a nested confirm
+  // cancels itself without closing the dialog behind it.
   return createPortal(
     <div className="confirm-dialog__overlay" role="presentation" onClick={onCancel}>
       <div

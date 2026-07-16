@@ -25,16 +25,18 @@ export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
     dialogRef.current?.focus();
   }, []);
 
-  // Portaled to <body> rather than rendered in place: some callers (e.g. TaskDetailDialog) open
-  // this from inside a draggable row that has its own pointer/keyboard listeners for dnd-kit --
-  // without a portal, keystrokes typed into this dialog's fields would bubble through that row's
-  // DOM subtree and could be intercepted by those listeners (e.g. Space being read as "pick up").
+  // Portaled to <body> for layering: the overlay must escape any ancestor `overflow`, `transform`,
+  // or z-index/stacking context (e.g. the scrollable task list, a draggable row) so it reliably
+  // covers the viewport and sits above everything. The portal does *not* address dnd-kit
+  // interference -- React synthetic events bubble through the component tree no matter where the DOM
+  // lives, so a portaled dialog opened from inside a draggable row would still feed pointer/key
+  // events to that row's dnd-kit activators.
   //
-  // The portal only reparents the *DOM*, though -- React synthetic events still bubble through the
-  // React component tree, so a pointerdown inside the dialog (e.g. dragging the textarea's resize
-  // handle) would otherwise reach the ancestor row's dnd-kit `onPointerDown` and start dragging the
-  // row behind the dialog. Stopping pointer/keydown propagation at the dialog root keeps all input
-  // contained to the modal.
+  // Containing that interference is what the `stopPropagation` handlers below do, and it's the
+  // load-bearing part: dnd-kit's pointer and keyboard activators are *synthetic* listeners
+  // (`onPointerDown` / `onKeyDown` spread onto the row), so stopping those synthetic events at the
+  // dialog root is what prevents e.g. a drag on the textarea's resize handle from starting a row
+  // drag, or Space in a field being read as "pick up" -- independent of the portal.
   //
   // Escape is handled here on the dialog root rather than via a document-level listener: the
   // keydown `stopPropagation` below (needed for the dnd containment above) also halts the *native*
