@@ -11,6 +11,8 @@ execution: code
 
 # Todo Task Management App - Plan
 
+> **Stale/historical.** This plan is out of date and no longer reflects the current codebase or requirements. Kept for historical reference only — don't treat it as authoritative spec.
+
 ## Goal Capsule
 
 - **Objective:** Ship a production-minded MVP to-do task management app (API + frontend) for Ezra's take-home, demonstrating clear architecture, deliberate scope judgment, and production-readiness practices rather than raw feature volume.
