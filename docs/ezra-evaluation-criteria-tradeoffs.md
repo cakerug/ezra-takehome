@@ -172,6 +172,24 @@ The migration history isn't a single `InitialCreate` — it already shows two sc
 
 `Program.cs` calls `db.Database.Migrate()` unconditionally on every startup, before seeding. **Why this is fine here:** single SQLite file, single process, no concurrent instances — there's no "two instances race to apply the same migration" hazard because there's only ever one instance. **Trade-off / revisit trigger:** `Database.Migrate()` on startup is a known footgun the moment there's more than one instance of an app pointed at the same database (Postgres included) — concurrent `Migrate()` calls can race on the migrations-history table. At scale (see Database entry below), migrations should move to an explicit deploy step (`dotnet ef database update` in CI/CD, or an init container) that runs once, ahead of the app instances starting — not be left running from inside `Program.cs`.
 
+#### Not done: CI gate on model-vs-migration drift
+
+There's no `.github/workflows/` in this repo at all — no CI runs the tests, the build, or any drift check. Worth adding, and cheap:
+
+```bash
+dotnet ef migrations has-pending-model-changes --project backend/TodoApi
+```
+
+This is the same command already used by hand to confirm the dropped `IsRequired()` calls were non-behavioural (see Field-length constraints above); as a CI step it becomes a gate. It builds the project, loads `AppDbContext`, diffs the resulting model against `AppDbContextModelSnapshot.cs`, and exits non-zero if they disagree — i.e. if someone edited a model or `OnModelCreating` and forgot `migrations add`. No database connection required, since it's a model-vs-snapshot comparison. `Microsoft.EntityFrameworkCore.Design` is already referenced with `PrivateAssets=all`, so the CLI works in CI without the design assembly shipping.
+
+**Worth pairing with `dotnet ef migrations script --idempotent` posted to the PR,** because the drift check has a narrow remit and the gap is easy to overstate. It proves the snapshot matches the model. It does not prove the migration is *good*:
+
+- **Destructive migrations pass it happily.** `DropProjectDescription` (above) is exactly the shape of change that is fully in sync with the model and still drops a column. Catching that needs a human reading the DDL, or a policy check grepping for `DropColumn`/`DropTable`.
+- **Snapshot merge conflicts can pass it.** Two branches each adding a migration both edit `AppDbContextModelSnapshot.cs`. Git will often auto-merge that into something self-consistent — so the check passes — but not equal to what either branch's migration actually applies.
+- **It's only as honest as `OnModelCreating` being deterministic.** Ours is. If model config ever branched on an environment variable or a provider check, CI and local could legitimately disagree.
+
+**Note this is a different mechanism from the frontend's `gen:api` drift check** (see Type safety at the boundary, and Schema/type generation CI enforcement below), even though both are "did you forget to regenerate" gates. That one is the generic codegen pattern — regenerate the file, `git diff --exit-code`, a dirty tree means someone skipped a step. `has-pending-model-changes` never writes anything, so there's no diff to inspect; the exit code *is* the answer. Both belong in the same workflow; neither substitutes for the other.
+
 #### Data seeding: idempotent, but not environment-gated
 
 `DbSeeder.SeedAsync` is a no-op if any project already exists (checked once, before inserting) — safe to call on every startup against a persisted file, per its own doc comment. It's called unconditionally in `Program.cs`, with no `if (app.Environment.IsDevelopment())` guard — unlike Swagger, which *is* gated that way two lines below it.
