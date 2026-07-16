@@ -106,11 +106,13 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(db);
 }
 
+// Security headers should be applied first so that they protect all responses,
+// including errors and rate-limiting responses.
+app.UseSecurityHeaders(securityHeadersPolicies);
+
 // CORS must run early in the pipeline — before the exception-handling middleware and endpoint
 // routing — so that preflight OPTIONS requests are answered directly instead of falling through
 // to routes that don't handle OPTIONS and would otherwise 404.
-app.UseSecurityHeaders(securityHeadersPolicies);
-
 app.UseCors(FrontendCorsPolicy);
 
 if (app.Environment.IsDevelopment())
