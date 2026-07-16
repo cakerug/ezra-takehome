@@ -268,11 +268,24 @@ button:disabled {
   cursor: grabbing;
 }
 
-/* No DragOverlay here (unlike tasks): the row itself moves via dnd-kit's transform, so lift it
-   with elevation rather than fading a vacated slot. */
+/* While dragging, the floating .project-sidebar__item--overlay clone (rendered by the DragOverlay)
+   is what follows the cursor -- this is just the vacated slot left behind in the list, faded so it
+   doesn't compete with the overlay (mirrors .task-item--dragging). */
 .project-sidebar__item--dragging {
-  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  opacity: 0.4;
+}
+
+/* Rendered by DragOverlay, positioned by dnd-kit to track the pointer directly. Elevation here
+   (vs. just the fade above) makes it read as "picked up" rather than part of the static list. */
+.project-sidebar__item--overlay {
   cursor: grabbing;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+}
+
+/* The floating drag clone isn't hovered, but it's literally the thing being dragged -- keep its
+   handle visible (mirrors the task overlay's handle). */
+.project-sidebar__row--overlay .project-sidebar__drag-handle {
+  opacity: 1;
 }
 
 .project-sidebar__item:hover {

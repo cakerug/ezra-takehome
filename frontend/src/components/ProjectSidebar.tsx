@@ -3,13 +3,14 @@ import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   arrayMove,
@@ -41,6 +42,36 @@ interface ProjectRowProps {
   onSelect: () => void;
 }
 
+/** Floating visual clone rendered inside `ProjectSidebar`'s `DragOverlay` while a project is being
+ * dragged -- it tracks the pointer directly instead of the reorder-relative transform `useSortable`
+ * applies to the in-place row, so the dragged project follows the cursor and only snaps to its new
+ * slot on drop (mirrors `TaskItemOverlay`). Presentational only: no hooks, no selection/click
+ * behavior. Keeps the selected styling so a selected project doesn't visually flip while lifted. */
+export function ProjectRowOverlay({
+  project,
+  isSelected,
+}: {
+  project: ProjectResponse;
+  isSelected: boolean;
+}) {
+  const className = [
+    'project-sidebar__item',
+    'project-sidebar__item--overlay',
+    isSelected && 'project-sidebar__item--selected',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div className="project-sidebar__row project-sidebar__row--overlay">
+      <span className="project-sidebar__drag-handle" aria-hidden="true">
+        ⠿
+      </span>
+      <span className={className}>{project.name}</span>
+    </div>
+  );
+}
+
 /** A single draggable sidebar row. The whole row is both the click target (selects the project)
  * and the pointer drag surface; a small movement threshold on the `PointerSensor` (see
  * `ProjectSidebar`) lets a plain click still select while a deliberate drag reorders. Keyboard
@@ -60,6 +91,8 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
   const className = [
     'project-sidebar__item',
     isSelected && 'project-sidebar__item--selected',
+    // While dragging, the in-place row is just the faded placeholder for the vacated slot -- the
+    // floating `ProjectRowOverlay` (rendered by the `DragOverlay`) is what follows the cursor.
     isDragging && 'project-sidebar__item--dragging',
   ]
     .filter(Boolean)
@@ -103,6 +136,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   });
 
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [activeId, setActiveId] = useState<number | null>(null);
 
   // A project row is both the pointer drag surface and a click-to-select button, so on release the
   // browser fires a native `click` on the just-dragged row -- which would otherwise select it even
@@ -113,14 +147,20 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   // swallow a later genuine click if a drag happens to produce no trailing click.
   const justDraggedRef = useRef(false);
 
-  function handleDragStart() {
+  function handleDragStart(event: DragStartEvent) {
     justDraggedRef.current = true;
+    setActiveId(Number(event.active.id));
   }
 
   function clearJustDraggedSoon() {
     setTimeout(() => {
       justDraggedRef.current = false;
     }, 0);
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+    clearJustDraggedSoon();
   }
 
   function handleSelectProject(projectId: SelectedProjectId) {
@@ -154,6 +194,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   function handleDragEnd(event: DragEndEvent) {
     // Let the just-dragged row's trailing `click` be ignored, then clear the flag next tick.
     clearJustDraggedSoon();
+    setActiveId(null);
 
     const { active, over } = event;
     if (!projects || !over || active.id === over.id) {
@@ -170,6 +211,9 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
     reorderMutation.mutate(orderedIds);
   }
 
+  const activeProject =
+    activeId === null ? undefined : projects?.find((project) => project.id === activeId);
+
   return (
     <nav aria-label="Projects" className="project-sidebar">
       <h2 className="project-sidebar__heading">Projects</h2>
@@ -182,7 +226,7 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onDragCancel={clearJustDraggedSoon}
+          onDragCancel={handleDragCancel}
         >
           <SortableContext
             items={projects.map((project) => project.id)}
@@ -201,6 +245,14 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
               ))}
             </ul>
           </SortableContext>
+          <DragOverlay>
+            {activeProject && (
+              <ProjectRowOverlay
+                project={activeProject}
+                isSelected={activeProject.id === selectedProjectId}
+              />
+            )}
+          </DragOverlay>
         </DndContext>
       )}
 
