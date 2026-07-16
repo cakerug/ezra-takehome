@@ -8,13 +8,12 @@ import { z } from 'zod';
 import type {
   CreateProjectRequest,
   CreateTaskRequest,
-  MoveTaskRequest,
+  PatchTaskRequest,
   ProjectResponse,
   ReorderProjectsRequest,
   ReorderTasksRequest,
   TaskResponse,
   UpdateProjectRequest,
-  UpdateTaskRequest,
 } from './generated-schemas';
 import { schemas } from './generated-schemas';
 import { ApiError, ResponseValidationError, type ProblemDetails } from './errors';
@@ -114,51 +113,32 @@ export function reorderProjects(data: ReorderProjectsRequest): Promise<ProjectRe
 // ---- Tasks ----
 
 export function listTasks(projectId: number): Promise<TaskResponse[]> {
-  return request(`/api/projects/${projectId}/tasks`, TaskListResponseSchema);
+  return request(`/api/tasks?projectId=${projectId}`, TaskListResponseSchema);
 }
 
-export function createTask(
-  projectId: number,
-  data: CreateTaskRequest,
-): Promise<TaskResponse> {
-  return request(`/api/projects/${projectId}/tasks`, TaskResponseSchema, {
+export function createTask(data: CreateTaskRequest): Promise<TaskResponse> {
+  return request('/api/tasks', TaskResponseSchema, {
     method: 'POST',
     ...toJsonBody(data),
   });
 }
 
-export function reorderTasks(
-  projectId: number,
-  data: ReorderTasksRequest,
-): Promise<TaskResponse[]> {
-  return request(`/api/projects/${projectId}/tasks/reorder`, TaskListResponseSchema, {
+export function reorderTasks(data: ReorderTasksRequest): Promise<TaskResponse[]> {
+  return request('/api/tasks/order', TaskListResponseSchema, {
     method: 'PUT',
     ...toJsonBody(data),
   });
 }
 
-export function updateTask(id: number, data: UpdateTaskRequest): Promise<TaskResponse> {
+// Backs field edits, complete/uncomplete, and move -- all four collapse into one partial-update
+// request now that task routes are flat; see docs/ezra-evaluation-criteria-tradeoffs.md.
+export function patchTask(id: number, data: PatchTaskRequest): Promise<TaskResponse> {
   return request(`/api/tasks/${id}`, TaskResponseSchema, {
-    method: 'PUT',
+    method: 'PATCH',
     ...toJsonBody(data),
   });
 }
 
 export function deleteTask(id: number): Promise<void> {
   return request(`/api/tasks/${id}`, undefined, { method: 'DELETE' });
-}
-
-export function completeTask(id: number): Promise<TaskResponse> {
-  return request(`/api/tasks/${id}/complete`, TaskResponseSchema, { method: 'PUT' });
-}
-
-export function uncompleteTask(id: number): Promise<TaskResponse> {
-  return request(`/api/tasks/${id}/uncomplete`, TaskResponseSchema, { method: 'PUT' });
-}
-
-export function moveTask(id: number, data: MoveTaskRequest): Promise<TaskResponse> {
-  return request(`/api/tasks/${id}/move`, TaskResponseSchema, {
-    method: 'PUT',
-    ...toJsonBody(data),
-  });
 }

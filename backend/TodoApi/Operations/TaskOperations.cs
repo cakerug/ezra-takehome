@@ -28,8 +28,9 @@ public static class TaskOperations
         return tasks.Select(ToResponse).ToList();
     }
 
-    public static async Task<TaskResponse> CreateAsync(AppDbContext db, int projectId, CreateTaskRequest request)
+    public static async Task<TaskResponse> CreateAsync(AppDbContext db, CreateTaskRequest request)
     {
+        var projectId = request.ProjectId!.Value;
         await EnsureProjectExistsAsync(db, projectId);
 
         var nextOrder = await NextOrderForProjectAsync(db, projectId);
@@ -51,27 +52,6 @@ public static class TaskOperations
         return ToResponse(task);
     }
 
-    public static async Task<TaskResponse> UpdateAsync(AppDbContext db, int id, UpdateTaskRequest request)
-    {
-        var task = await FindTaskOrThrowAsync(db, id);
-
-        // A completed task is locked for editing; the client must reopen it (uncomplete) first.
-        // The complete/uncomplete toggle, move, and delete all stay allowed -- only field edits
-        // are blocked here.
-        if (task.IsComplete)
-        {
-            throw new ForbiddenOperationException(
-                "A completed task cannot be edited. Mark it incomplete first.");
-        }
-
-        task.Title = request.Title!;
-        task.Description = request.Description;
-
-        await db.SaveChangesAsync();
-
-        return ToResponse(task);
-    }
-
     public static async Task DeleteAsync(AppDbContext db, int id)
     {
         var task = await FindTaskOrThrowAsync(db, id);
@@ -80,47 +60,74 @@ public static class TaskOperations
         await db.SaveChangesAsync();
     }
 
-    public static async Task<TaskResponse> SetCompleteAsync(AppDbContext db, int id, bool isComplete)
+    /// <summary>
+    /// Applies whichever fields are present on <paramref name="request"/>. Move (<see
+    /// cref="PatchTaskRequest.ProjectId"/>) and the complete/uncomplete toggle (<see
+    /// cref="PatchTaskRequest.IsComplete"/>) are applied first, in that order, so a request that
+    /// both uncompletes a task and edits its title in the same call is evaluated against the
+    /// task's *resulting* state -- the completed-task edit lock below only sees the state as of
+    /// after any move/toggle in this same request, matching how the equivalent sequence of
+    /// separate requests would have behaved.
+    /// </summary>
+    public static async Task<TaskResponse> PatchAsync(AppDbContext db, int id, PatchTaskRequest request)
     {
         var task = await FindTaskOrThrowAsync(db, id);
 
-        // Idempotent: a repeat of the same state is a no-op, so re-completing an already-complete
-        // task keeps its original CompletedAt rather than resetting the timestamp.
-        if (task.IsComplete == isComplete)
+        if (request.ProjectId is int targetProjectId)
         {
-            return ToResponse(task);
+            await EnsureProjectExistsAsync(db, targetProjectId);
+
+            var nextOrder = await NextOrderForProjectAsync(db, targetProjectId);
+
+            task.ProjectId = targetProjectId;
+            task.Order = nextOrder;
         }
 
-        task.IsComplete = isComplete;
-        task.CompletedAt = isComplete ? DateTime.UtcNow : null;
+        if (request.IsComplete is bool isComplete && task.IsComplete != isComplete)
+        {
+            // Idempotent: a repeat of the same state is a no-op (guarded by the `!=` above), so
+            // re-completing an already-complete task keeps its original CompletedAt rather than
+            // resetting the timestamp.
+            task.IsComplete = isComplete;
+            task.CompletedAt = isComplete ? DateTime.UtcNow : null;
+        }
 
+        if (request.Title is not null || request.Description is not null)
+        {
+            // A completed task is locked for field edits; the client must reopen it (uncomplete)
+            // first -- unless this same request is the one doing the reopening (handled by the
+            // ordering above). The complete/uncomplete toggle, move, and delete all stay allowed
+            // even while complete -- only Title/Description are blocked here.
+            if (task.IsComplete)
+            {
+                throw new ForbiddenOperationException(
+                    "A completed task cannot be edited. Mark it incomplete first.");
+            }
+
+            if (request.Title is not null)
+            {
+                task.Title = request.Title;
+            }
+
+            if (request.Description is not null)
+            {
+                task.Description = request.Description;
+            }
+        }
+
+        // If the target project (on a move) is deleted concurrently between the check above and
+        // this save, SQLite's FK enforcement rejects the UPDATE and EF Core throws
+        // DbUpdateException, which ExceptionHandlingMiddleware maps to a clean 409 Conflict. No
+        // re-check needed here — a re-check can't close the window anyway (the delete can still
+        // land after it).
         await db.SaveChangesAsync();
 
         return ToResponse(task);
     }
 
-    public static async Task<TaskResponse> MoveAsync(AppDbContext db, int id, MoveTaskRequest request)
+    public static async Task<List<TaskResponse>> ReorderAsync(AppDbContext db, ReorderTasksRequest request)
     {
-        var task = await FindTaskOrThrowAsync(db, id);
-
-        await EnsureProjectExistsAsync(db, request.TargetProjectId);
-
-        var nextOrder = await NextOrderForProjectAsync(db, request.TargetProjectId);
-
-        task.ProjectId = request.TargetProjectId;
-        task.Order = nextOrder;
-
-        // If the target project is deleted concurrently between the check above and this save,
-        // SQLite's FK enforcement rejects the UPDATE and EF Core throws DbUpdateException, which
-        // ExceptionHandlingMiddleware maps to a clean 409 Conflict. No re-check needed here — a
-        // re-check can't close the window anyway (the delete can still land after it).
-        await db.SaveChangesAsync();
-
-        return ToResponse(task);
-    }
-
-    public static async Task<List<TaskResponse>> ReorderAsync(AppDbContext db, int projectId, ReorderTasksRequest request)
-    {
+        var projectId = request.ProjectId;
         await EnsureProjectExistsAsync(db, projectId);
 
         var orderedIds = request.OrderedTaskIds ?? new List<int>();

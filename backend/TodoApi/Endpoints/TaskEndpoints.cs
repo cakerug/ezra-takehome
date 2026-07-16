@@ -13,31 +13,23 @@ public static class TaskEndpoints
 {
     public static IEndpointRouteBuilder MapTaskEndpoints(this IEndpointRouteBuilder app)
     {
-        var projectTasks = app.MapGroup("/api/projects/{projectId:int}/tasks");
+        var tasks = app.MapGroup("/api/tasks");
 
-        projectTasks.MapGet("", async (AppDbContext db, int projectId) =>
+        tasks.MapGet("", async (AppDbContext db, int projectId) =>
         {
-            var tasks = await TaskOperations.ListByProjectAsync(db, projectId);
-            return Results.Ok(tasks);
+            var list = await TaskOperations.ListByProjectAsync(db, projectId);
+            return Results.Ok(list);
         }).Produces<List<TaskResponse>>();
 
-        projectTasks.MapPost("", async (AppDbContext db, int projectId, CreateTaskRequest request) =>
+        tasks.MapPost("", async (AppDbContext db, CreateTaskRequest request) =>
         {
-            var created = await TaskOperations.CreateAsync(db, projectId, request);
+            var created = await TaskOperations.CreateAsync(db, request);
             return Results.Created($"/api/tasks/{created.Id}", created);
         }).Produces<TaskResponse>(StatusCodes.Status201Created);
 
-        projectTasks.MapPut("/reorder", async (AppDbContext db, int projectId, ReorderTasksRequest request) =>
+        tasks.MapPatch("/{id:int}", async (AppDbContext db, int id, PatchTaskRequest request) =>
         {
-            var reordered = await TaskOperations.ReorderAsync(db, projectId, request);
-            return Results.Ok(reordered);
-        }).Produces<List<TaskResponse>>();
-
-        var tasks = app.MapGroup("/api/tasks");
-
-        tasks.MapPut("/{id:int}", async (AppDbContext db, int id, UpdateTaskRequest request) =>
-        {
-            var updated = await TaskOperations.UpdateAsync(db, id, request);
+            var updated = await TaskOperations.PatchAsync(db, id, request);
             return Results.Ok(updated);
         }).Produces<TaskResponse>();
 
@@ -47,23 +39,11 @@ public static class TaskEndpoints
             return Results.NoContent();
         }).Produces(StatusCodes.Status204NoContent);
 
-        tasks.MapPut("/{id:int}/complete", async (AppDbContext db, int id) =>
+        tasks.MapPut("/order", async (AppDbContext db, ReorderTasksRequest request) =>
         {
-            var updated = await TaskOperations.SetCompleteAsync(db, id, isComplete: true);
-            return Results.Ok(updated);
-        }).Produces<TaskResponse>();
-
-        tasks.MapPut("/{id:int}/uncomplete", async (AppDbContext db, int id) =>
-        {
-            var updated = await TaskOperations.SetCompleteAsync(db, id, isComplete: false);
-            return Results.Ok(updated);
-        }).Produces<TaskResponse>();
-
-        tasks.MapPut("/{id:int}/move", async (AppDbContext db, int id, MoveTaskRequest request) =>
-        {
-            var moved = await TaskOperations.MoveAsync(db, id, request);
-            return Results.Ok(moved);
-        }).Produces<TaskResponse>();
+            var reordered = await TaskOperations.ReorderAsync(db, request);
+            return Results.Ok(reordered);
+        }).Produces<List<TaskResponse>>();
 
         return app;
     }

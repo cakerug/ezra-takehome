@@ -16,35 +16,26 @@ vi.mock('../api/client', async () => {
     listProjects: vi.fn(),
     listTasks: vi.fn(),
     createTask: vi.fn(),
-    updateTask: vi.fn(),
+    patchTask: vi.fn(),
     deleteTask: vi.fn(),
-    completeTask: vi.fn(),
-    uncompleteTask: vi.fn(),
-    moveTask: vi.fn(),
     reorderTasks: vi.fn(),
   };
 });
 
 import {
-  completeTask,
   createTask,
   deleteTask,
   listProjects,
   listTasks,
-  moveTask,
+  patchTask,
   reorderTasks,
-  uncompleteTask,
-  updateTask,
 } from '../api/client';
 
 const mockListProjects = vi.mocked(listProjects);
 const mockListTasks = vi.mocked(listTasks);
 const mockCreateTask = vi.mocked(createTask);
-const mockUpdateTask = vi.mocked(updateTask);
+const mockPatchTask = vi.mocked(patchTask);
 const mockDeleteTask = vi.mocked(deleteTask);
-const mockCompleteTask = vi.mocked(completeTask);
-const mockUncompleteTask = vi.mocked(uncompleteTask);
-const mockMoveTask = vi.mocked(moveTask);
 const mockReorderTasks = vi.mocked(reorderTasks);
 
 const inbox: ProjectResponse = { id: 1, name: 'Inbox', order: 0 };
@@ -82,11 +73,8 @@ beforeEach(() => {
   mockListProjects.mockReset();
   mockListTasks.mockReset();
   mockCreateTask.mockReset();
-  mockUpdateTask.mockReset();
+  mockPatchTask.mockReset();
   mockDeleteTask.mockReset();
-  mockCompleteTask.mockReset();
-  mockUncompleteTask.mockReset();
-  mockMoveTask.mockReset();
   mockReorderTasks.mockReset();
   mockListProjects.mockResolvedValue([inbox, work]);
 });
@@ -114,7 +102,7 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('button', { name: 'Add task' }));
 
     await waitFor(() => {
-      expect(mockCreateTask).toHaveBeenCalledWith(1, { title: 'Walk dog' });
+      expect(mockCreateTask).toHaveBeenCalledWith({ projectId: 1, title: 'Walk dog' });
     });
 
     expect(await screen.findByText('Walk dog')).toBeInTheDocument();
@@ -142,7 +130,7 @@ describe('TaskList', () => {
     await user.type(screen.getByLabelText('Title'), 'Quick task{Enter}');
 
     await waitFor(() => {
-      expect(mockCreateTask).toHaveBeenCalledWith(1, { title: 'Quick task' });
+      expect(mockCreateTask).toHaveBeenCalledWith({ projectId: 1, title: 'Quick task' });
     });
 
     expect(await screen.findByText('Quick task')).toBeInTheDocument();
@@ -242,7 +230,7 @@ describe('TaskList', () => {
     mockListTasks.mockResolvedValueOnce([first, second]);
 
     const completedFirst = { ...first, isComplete: true, completedAt: '2026-07-02T00:00:00Z' };
-    mockCompleteTask.mockResolvedValueOnce(completedFirst);
+    mockPatchTask.mockResolvedValueOnce(completedFirst);
     mockListTasks.mockResolvedValueOnce([completedFirst, second]);
 
     renderTaskList();
@@ -253,7 +241,7 @@ describe('TaskList', () => {
     await user.click(screen.getByLabelText('Mark "First" complete'));
 
     await waitFor(() => {
-      expect(mockCompleteTask).toHaveBeenCalledWith(1);
+      expect(mockPatchTask).toHaveBeenCalledWith(1, { isComplete: true });
     });
 
     // After refetch: "First" is struck through and ordered after "Second".
@@ -265,7 +253,7 @@ describe('TaskList', () => {
     expect(titles).toEqual(['Second', 'First']);
   });
 
-  it('reopening a completed task calls uncompleteTask and removes the completed styling (AE1)', async () => {
+  it('reopening a completed task calls patchTask with isComplete: false and removes the completed styling (AE1)', async () => {
     const user = userEvent.setup();
     const completed = makeTask({
       id: 1,
@@ -276,7 +264,7 @@ describe('TaskList', () => {
     mockListTasks.mockResolvedValueOnce([completed]);
 
     const reopened = { ...completed, isComplete: false, completedAt: null };
-    mockUncompleteTask.mockResolvedValueOnce(reopened);
+    mockPatchTask.mockResolvedValueOnce(reopened);
     mockListTasks.mockResolvedValueOnce([reopened]);
 
     renderTaskList();
@@ -287,7 +275,7 @@ describe('TaskList', () => {
     await user.click(screen.getByLabelText('Mark "Done task" incomplete'));
 
     await waitFor(() => {
-      expect(mockUncompleteTask).toHaveBeenCalledWith(1);
+      expect(mockPatchTask).toHaveBeenCalledWith(1, { isComplete: false });
     });
 
     const titleAfterReopen = await screen.findByText('Done task');
@@ -300,7 +288,7 @@ describe('TaskList', () => {
     mockListTasks.mockResolvedValueOnce([task]);
 
     const completed = { ...task, isComplete: true, completedAt: '2026-07-02T00:00:00Z' };
-    mockCompleteTask.mockResolvedValueOnce(completed);
+    mockPatchTask.mockResolvedValueOnce(completed);
     mockListTasks.mockResolvedValueOnce([completed]);
 
     renderTaskList();
@@ -314,7 +302,7 @@ describe('TaskList', () => {
     await user.click(dialogCheckbox);
 
     await waitFor(() => {
-      expect(mockCompleteTask).toHaveBeenCalledWith(1);
+      expect(mockPatchTask).toHaveBeenCalledWith(1, { isComplete: true });
     });
 
     // The dialog's own title field reflects the completed state too, not just the row behind it.
@@ -331,7 +319,7 @@ describe('TaskList', () => {
     mockListTasks.mockResolvedValueOnce([task]);
 
     const updated = makeTask({ id: 1, title: 'New title', description: 'Old desc' });
-    mockUpdateTask.mockResolvedValueOnce(updated);
+    mockPatchTask.mockResolvedValueOnce(updated);
     mockListTasks.mockResolvedValueOnce([updated]);
 
     renderTaskList();
@@ -349,8 +337,8 @@ describe('TaskList', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      // The whole task is replaced, so the untouched description is sent alongside the new title.
-      expect(mockUpdateTask).toHaveBeenCalledWith(1, {
+      // Both fields are sent together, so the untouched description accompanies the new title.
+      expect(mockPatchTask).toHaveBeenCalledWith(1, {
         title: 'New title',
         description: 'Old desc',
       });
@@ -417,7 +405,7 @@ describe('TaskList', () => {
     // "Keep editing" returns to the still-open detail view without saving.
     await user.click(within(confirm).getByRole('button', { name: 'Keep editing' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(mockUpdateTask).not.toHaveBeenCalled();
+    expect(mockPatchTask).not.toHaveBeenCalled();
 
     // Confirming discard closes the detail view for good.
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
@@ -457,7 +445,7 @@ describe('TaskList', () => {
       status: 400,
       errors: { Title: ['Title must be at most 200 characters.'] },
     });
-    mockUpdateTask.mockRejectedValueOnce(validationError);
+    mockPatchTask.mockRejectedValueOnce(validationError);
 
     renderTaskList();
 
@@ -472,7 +460,7 @@ describe('TaskList', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(mockUpdateTask).toHaveBeenCalled();
+      expect(mockPatchTask).toHaveBeenCalled();
     });
 
     expect(
@@ -488,7 +476,7 @@ describe('TaskList', () => {
     mockListTasks.mockResolvedValueOnce([task]);
 
     const moved = { ...task, projectId: 2 };
-    mockMoveTask.mockResolvedValueOnce(moved);
+    mockPatchTask.mockResolvedValueOnce(moved);
     mockListTasks.mockResolvedValueOnce([]);
 
     renderTaskList(1);
@@ -503,7 +491,7 @@ describe('TaskList', () => {
     await user.click(within(dialog).getByRole('menuitem', { name: 'Work' }));
 
     await waitFor(() => {
-      expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
+      expect(mockPatchTask).toHaveBeenCalledWith(1, { projectId: 2 });
     });
     // Moving closes the detail view (the task no longer belongs to this project).
     await waitFor(() => {
@@ -588,7 +576,7 @@ describe('TaskList', () => {
     // `toToastMessage` + `Toast` plumbing inside `TaskList`.
     const orderedIds = computeReorderedIds([first, second], 1, 2);
     expect(orderedIds).toEqual([2, 1]);
-    await expect(reorderTasks(1, { orderedTaskIds: orderedIds! })).rejects.toThrow();
+    await expect(reorderTasks({ projectId: 1, orderedTaskIds: orderedIds! })).rejects.toThrow();
 
     // Order in the DOM is unchanged because no successful reorder ever invalidated the query.
     const items = screen.getAllByRole('listitem');
@@ -600,7 +588,7 @@ describe('TaskList', () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Stubborn task', projectId: 1 });
     mockListTasks.mockResolvedValue([task]);
-    mockMoveTask.mockRejectedValueOnce(new Error('Failed to move task.'));
+    mockPatchTask.mockRejectedValueOnce(new Error('Failed to move task.'));
 
     renderTaskList(1);
 
@@ -611,7 +599,7 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Work' }));
 
     await waitFor(() => {
-      expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
+      expect(mockPatchTask).toHaveBeenCalledWith(1, { projectId: 2 });
     });
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
@@ -619,13 +607,13 @@ describe('TaskList', () => {
     expect(screen.getByText('Stubborn task')).toBeInTheDocument();
   });
 
-  it('picking a project from the move menu calls moveTask with the target id, and the task disappears after refetch', async () => {
+  it('picking a project from the move menu calls patchTask with the target project id, and the task disappears after refetch', async () => {
     const user = userEvent.setup();
     const task = makeTask({ id: 1, title: 'Movable task', projectId: 1 });
     mockListTasks.mockResolvedValueOnce([task]);
 
     const moved = { ...task, projectId: 2 };
-    mockMoveTask.mockResolvedValueOnce(moved);
+    mockPatchTask.mockResolvedValueOnce(moved);
     // Refetch of project 1's tasks after the move: task 1 no longer belongs there.
     mockListTasks.mockResolvedValueOnce([]);
 
@@ -637,7 +625,7 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Work' }));
 
     await waitFor(() => {
-      expect(mockMoveTask).toHaveBeenCalledWith(1, { targetProjectId: 2 });
+      expect(mockPatchTask).toHaveBeenCalledWith(1, { projectId: 2 });
     });
 
     await waitFor(() => {

@@ -3,7 +3,7 @@ import type { KeyboardEventHandler } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { completeTask, deleteTask, moveTask, uncompleteTask } from '../api/client';
+import { deleteTask, patchTask } from '../api/client';
 import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
@@ -95,7 +95,7 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
   }
 
   const toggleCompleteMutation = useMutation({
-    mutationFn: () => (task.isComplete ? uncompleteTask(task.id) : completeTask(task.id)),
+    mutationFn: () => patchTask(task.id, { isComplete: !task.isComplete }),
     onSuccess: () => {
       invalidateTasks();
     },
@@ -105,7 +105,7 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
   });
 
   const moveMutation = useMutation({
-    mutationFn: (targetProjectId: number) => moveTask(task.id, { targetProjectId }),
+    mutationFn: (targetProjectId: number) => patchTask(task.id, { projectId: targetProjectId }),
     onSuccess: (_movedTask, targetProjectId) => {
       invalidateTasks();
       // Also refresh the destination project's list. Without this, if the user has already

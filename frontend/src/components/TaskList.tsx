@@ -65,7 +65,7 @@ export function TaskList({ projectId }: TaskListProps) {
 
   const reorderMutation = useMutation({
     mutationFn: (orderedTaskIds: number[]) =>
-      reorderTasks(projectId, { orderedTaskIds }),
+      reorderTasks({ projectId, orderedTaskIds }),
     onSuccess: (updatedTasks) => {
       // Reconcile the optimistic order with the server's authoritative response (which also carries
       // the server-assigned `order` values) by writing it straight into the cache instead of

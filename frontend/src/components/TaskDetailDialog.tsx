@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  completeTask,
-  deleteTask,
-  moveTask,
-  uncompleteTask,
-  updateTask,
-} from '../api/client';
+import { deleteTask, patchTask } from '../api/client';
 import { extractFieldErrors, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
@@ -24,8 +18,10 @@ interface TaskDetailDialogProps {
 /**
  * The popup "view" opened by clicking a task row. Title and description are edited through an
  * explicit editing buffer (not auto-save-on-blur): the two fields are seeded from the task and
- * committed together by a single "Save" button via the `updateTask` mutation. Because `updateTask`
- * replaces the whole task, both fields are always sent together.
+ * committed together by a single "Save" button via `patchTask`. Both fields are always sent
+ * together (rather than omitting an unchanged one) because `PatchTaskRequest` treats `null`/
+ * omitted as "leave alone" and `""` as "clear" -- an unconditionally-sent empty description is
+ * how the user's deliberate clear is distinguished from a no-op.
  *
  * Closing while the buffer differs from the task (the Cancel button, backdrop, or Escape) prompts
  * a discard confirmation; a clean buffer closes immediately. Field-validation failures render
@@ -61,10 +57,7 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
 
   const updateMutation = useMutation({
     mutationFn: (next: { title: string; description: string }) =>
-      updateTask(task.id, {
-        title: next.title,
-        ...(next.description.trim() ? { description: next.description } : {}),
-      }),
+      patchTask(task.id, { title: next.title, description: next.description }),
     onSuccess: invalidateTasks,
     onError: (error: unknown) => {
       if (!extractFieldErrors(error)) {
@@ -74,7 +67,7 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
   });
 
   const toggleCompleteMutation = useMutation({
-    mutationFn: () => (task.isComplete ? uncompleteTask(task.id) : completeTask(task.id)),
+    mutationFn: () => patchTask(task.id, { isComplete: !task.isComplete }),
     onSuccess: invalidateTasks,
     onError: (error: unknown) => {
       showErrorToast(toToastMessage(error));
@@ -82,7 +75,7 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
   });
 
   const moveMutation = useMutation({
-    mutationFn: (targetProjectId: number) => moveTask(task.id, { targetProjectId }),
+    mutationFn: (targetProjectId: number) => patchTask(task.id, { projectId: targetProjectId }),
     onSuccess: (_movedTask, targetProjectId) => {
       invalidateTasks();
       // Also refresh the destination project's list so switching to it doesn't briefly show the

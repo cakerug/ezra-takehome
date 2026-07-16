@@ -204,6 +204,39 @@ There is no `Validation/` folder or FluentValidation-style validator classes —
 
 The whole API is Minimal APIs (`MapGroup`/`MapGet`/`MapPost` in `Endpoints/*.cs`), not MVC controllers (`[ApiController]` classes with attribute routing). **What this costs, concretely, visible in this codebase:** things MVC gives for free had to be assembled by hand — request validation (`AddValidation()`, a .NET 10 addition, rather than automatic `[ApiController]` model-state validation), the `ProblemDetails` response convention (`AddProblemDetails()` + a custom middleware, rather than MVC's built-in `ValidationProblemDetails` on invalid `ModelState`), and there's no filter-pipeline equivalent to MVC action filters — cross-cutting concerns here are ASP.NET Core middleware (`ExceptionHandlingMiddleware`, CORS, rate limiting) instead. **What it buys:** every route in `ProjectEndpoints.cs`/`TaskEndpoints.cs` is a few lines — parse params, call one `Operations` method, wrap the result — with no controller-class ceremony (constructor injection boilerplate, one class per resource) for an API this size (nine routes total across two resources). **Verdict:** a reasonable fit at this scale specifically because .NET 10's Minimal API validation support closed the main gap (structural validation) that used to make Minimal APIs a harder sell for anything beyond a handful of routes; would revisit if the route count or the need for shared per-route policy (authorization attributes, versioning conventions) grew enough that hand-wiring each concern via middleware stopped being cheaper than MVC's conventions.
 
+#### Task routes: flat (`/api/tasks`), not nested under `/api/projects/{projectId}/tasks` — plus one `PATCH` instead of four `PUT`s
+
+**Before:**
+```
+GET    /api/projects/{projectId}/tasks
+POST   /api/projects/{projectId}/tasks
+PUT    /api/tasks/{id}
+PUT    /api/tasks/{id}/complete
+PUT    /api/tasks/{id}/uncomplete
+PUT    /api/tasks/{id}/move
+DELETE /api/tasks/{id}
+PUT    /api/projects/{projectId}/tasks/reorder
+```
+
+**After:**
+```
+GET    /api/tasks?projectId={projectId}
+POST   /api/tasks                    { projectId, title, description? }
+PATCH  /api/tasks/{id}               { title?, description?, isComplete?, projectId? }
+DELETE /api/tasks/{id}
+PUT    /api/tasks/order              { projectId, orderedTaskIds: [...] }
+```
+
+**Why drop the `/projects/{projectId}/tasks` nesting:** a `Task`'s `projectId` is a plain, mutable foreign key — proven by the fact a `move` endpoint already exists to change it. Nesting the URL under a project implies the task lives at that path, the way a filesystem path implies containment; that's misleading for a relationship the app itself treats as reassignable. Once `projectId` is "just a field," it belongs in a query param (for `GET`) or the body (for `POST`), not the route — the same way no other filter/foreign-key ever became its own path segment in this API.
+
+**Why collapse `PUT /{id}`, `/complete`, `/uncomplete`, and `/move` into one `PATCH /{id}`:** all four were "change one or more fields on this task" wearing different URLs. `{ isComplete: true }` replaces complete/uncomplete; `{ projectId: 5 }` replaces move. `PATCH`'s actual semantics (apply a partial change) also fit better than the previous `PUT`s, which mutated a single field or toggled a flag without ever sending a full resource representation — the literal contract of `PUT` (replace the resource with this representation) was being invoked for something that wasn't a replace.
+
+**Why reorder stays its own endpoint, not folded into `PATCH`:** reordering isn't "update one resource's field," it's a bulk resequencing of every sibling's `Order` in a collection — there's no single task id to `PATCH` against. It keeps the full-replace-list shape (see Project reordering above) and moves from `/projects/{projectId}/tasks/reorder` to a flat `/tasks/order` with `projectId` now carried in the body instead of the route, for the same flattening reason as list/create.
+
+**Trade-off:** `GET /api/tasks` needs `projectId` treated as a required query param (400 without it) rather than letting an unscoped "every task across every project" query fall out by accident — behavior stays identical to today, just moved from path to query string. `POST`/`PUT order` also lose the free route-level `int` binding/validation on `projectId` that nesting gave for free; existence-checking has to happen in the handler either way, so this is a small cost, not a new one.
+
+**One shape per resource, regardless of relationship or operation.** This is the same principle behind the `PATCH` consolidation above, just applied to routing: don't let *how* a resource is being touched, or *which* other resource currently owns it, change *where* it lives. `Project` was already flat (`/api/projects`); this makes `Task` follow the identical rule instead of carrying a special nesting case because it happens to have a (mutable) parent.
+
 ### Frontend
 
 #### State management

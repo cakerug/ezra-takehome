@@ -78,7 +78,7 @@ public class TaskEndpointsTests : IDisposable
 
     private async Task<TaskResponse> CreateTaskAsync(HttpClient client, int projectId, string title)
     {
-        var response = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new CreateTaskRequest { Title = title });
+        var response = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest { ProjectId = projectId, Title = title });
         response.EnsureSuccessStatusCode();
         var task = await response.Content.ReadFromJsonAsync<TaskResponse>();
         return task!;
@@ -109,9 +109,9 @@ public class TaskEndpointsTests : IDisposable
         var destTask1 = await CreateTaskAsync(client, destProjectId, "Dest Task 1");
 
         // Move the middle source task (Order 1) to the destination project.
-        var moveResponse = await client.PutAsJsonAsync($"/api/tasks/{sourceTask1.Id}/move", new MoveTaskRequest
+        var moveResponse = await client.PatchAsJsonAsync($"/api/tasks/{sourceTask1.Id}", new PatchTaskRequest
         {
-            TargetProjectId = destProjectId,
+            ProjectId = destProjectId,
         });
         Assert.Equal(HttpStatusCode.OK, moveResponse.StatusCode);
         var moved = await moveResponse.Content.ReadFromJsonAsync<TaskResponse>();
@@ -151,9 +151,9 @@ public class TaskEndpointsTests : IDisposable
 
         var task = await CreateTaskAsync(client, sourceProjectId, "Only Task");
 
-        var moveResponse = await client.PutAsJsonAsync($"/api/tasks/{task.Id}/move", new MoveTaskRequest
+        var moveResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest
         {
-            TargetProjectId = emptyDestProjectId,
+            ProjectId = emptyDestProjectId,
         });
         Assert.Equal(HttpStatusCode.OK, moveResponse.StatusCode);
         var moved = await moveResponse.Content.ReadFromJsonAsync<TaskResponse>();
@@ -170,9 +170,9 @@ public class TaskEndpointsTests : IDisposable
         var projectId = await CreateProjectAsync(client, "Source");
         var task = await CreateTaskAsync(client, projectId, "Some Task");
 
-        var moveResponse = await client.PutAsJsonAsync($"/api/tasks/{task.Id}/move", new MoveTaskRequest
+        var moveResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest
         {
-            TargetProjectId = 999999,
+            ProjectId = 999999,
         });
 
         Assert.Equal(HttpStatusCode.NotFound, moveResponse.StatusCode);
@@ -192,8 +192,9 @@ public class TaskEndpointsTests : IDisposable
         // New sequence: C, A, B
         var newOrder = new List<int> { taskC.Id, taskA.Id, taskB.Id };
 
-        var reorderResponse = await client.PutAsJsonAsync($"/api/projects/{projectId}/tasks/reorder", new ReorderTasksRequest
+        var reorderResponse = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
         {
+            ProjectId = projectId,
             OrderedTaskIds = newOrder,
         });
         Assert.Equal(HttpStatusCode.OK, reorderResponse.StatusCode);
@@ -203,7 +204,7 @@ public class TaskEndpointsTests : IDisposable
         Assert.Equal(new List<int> { 0, 1, 2 }, reordered.Select(t => t.Order).ToList());
 
         // Confirm via a fresh list call (queried by Order) that persisted state matches.
-        var listResponse = await client.GetAsync($"/api/projects/{projectId}/tasks");
+        var listResponse = await client.GetAsync($"/api/tasks?projectId={projectId}");
         var list = await listResponse.Content.ReadFromJsonAsync<List<TaskResponse>>();
         Assert.NotNull(list);
         Assert.Equal(newOrder, list!.Select(t => t.Id).ToList());
@@ -223,8 +224,9 @@ public class TaskEndpointsTests : IDisposable
         var taskA = await CreateTaskAsync(client, projectId, "A");
         var taskB = await CreateTaskAsync(client, projectId, "B");
 
-        var response = await client.PutAsJsonAsync($"/api/projects/{projectId}/tasks/reorder", new ReorderTasksRequest
+        var response = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
         {
+            ProjectId = projectId,
             OrderedTaskIds = new List<int> { taskA.Id }, // omits taskB
         });
 
@@ -245,8 +247,9 @@ public class TaskEndpointsTests : IDisposable
         var taskA = await CreateTaskAsync(client, projectId, "A");
         var taskB = await CreateTaskAsync(client, projectId, "B");
 
-        var response = await client.PutAsJsonAsync($"/api/projects/{projectId}/tasks/reorder", new ReorderTasksRequest
+        var response = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
         {
+            ProjectId = projectId,
             OrderedTaskIds = new List<int> { taskA.Id, taskA.Id }, // duplicate, omits taskB
         });
 
@@ -265,8 +268,9 @@ public class TaskEndpointsTests : IDisposable
         var taskB = await CreateTaskAsync(client, projectId, "B");
         var otherTask = await CreateTaskAsync(client, otherProjectId, "Other");
 
-        var response = await client.PutAsJsonAsync($"/api/projects/{projectId}/tasks/reorder", new ReorderTasksRequest
+        var response = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
         {
+            ProjectId = projectId,
             OrderedTaskIds = new List<int> { taskA.Id, otherTask.Id }, // otherTask doesn't belong; also omits taskB
         });
 
@@ -293,9 +297,9 @@ public class TaskEndpointsTests : IDisposable
         var b1 = await CreateTaskAsync(client, projectBId, "B1");
 
         // Move a1 into Project B -- should land at Order 2 (after b0=0, b1=1).
-        var moveResponse = await client.PutAsJsonAsync($"/api/tasks/{a1.Id}/move", new MoveTaskRequest
+        var moveResponse = await client.PatchAsJsonAsync($"/api/tasks/{a1.Id}", new PatchTaskRequest
         {
-            TargetProjectId = projectBId,
+            ProjectId = projectBId,
         });
         Assert.Equal(HttpStatusCode.OK, moveResponse.StatusCode);
         var moved = await moveResponse.Content.ReadFromJsonAsync<TaskResponse>();
@@ -303,8 +307,9 @@ public class TaskEndpointsTests : IDisposable
 
         // Now reorder Project B's tasks (b0, b1, a1) into (a1, b1, b0).
         var newOrder = new List<int> { a1.Id, b1.Id, b0.Id };
-        var reorderResponse = await client.PutAsJsonAsync($"/api/projects/{projectBId}/tasks/reorder", new ReorderTasksRequest
+        var reorderResponse = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
         {
+            ProjectId = projectBId,
             OrderedTaskIds = newOrder,
         });
         Assert.Equal(HttpStatusCode.OK, reorderResponse.StatusCode);
@@ -332,8 +337,9 @@ public class TaskEndpointsTests : IDisposable
         var projectId = await CreateProjectAsync(client, "Groceries");
 
         // Create
-        var createResponse = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new CreateTaskRequest
+        var createResponse = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest
         {
+            ProjectId = projectId,
             Title = "Buy milk",
             Description = "2% preferred",
         });
@@ -351,14 +357,14 @@ public class TaskEndpointsTests : IDisposable
         Assert.Equal(1, created2.Order);
 
         // List, ordered
-        var listResponse = await client.GetAsync($"/api/projects/{projectId}/tasks");
+        var listResponse = await client.GetAsync($"/api/tasks?projectId={projectId}");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var list = await listResponse.Content.ReadFromJsonAsync<List<TaskResponse>>();
         Assert.NotNull(list);
         Assert.Equal(new List<int> { created.Id, created2.Id }, list!.Select(t => t.Id).ToList());
 
         // Edit
-        var updateResponse = await client.PutAsJsonAsync($"/api/tasks/{created.Id}", new UpdateTaskRequest
+        var updateResponse = await client.PatchAsJsonAsync($"/api/tasks/{created.Id}", new PatchTaskRequest
         {
             Title = "Buy oat milk",
             Description = "Updated",
@@ -371,19 +377,19 @@ public class TaskEndpointsTests : IDisposable
 
         // Complete (covers AE1: not-yet-complete task, checked off, gets a completion timestamp,
         // remains in the system).
-        var completeResponse = await client.PutAsync($"/api/tasks/{created.Id}/complete", null);
+        var completeResponse = await client.PatchAsJsonAsync($"/api/tasks/{created.Id}", new PatchTaskRequest { IsComplete = true });
         Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
         var completed = await completeResponse.Content.ReadFromJsonAsync<TaskResponse>();
         Assert.NotNull(completed);
         Assert.True(completed!.IsComplete);
         Assert.NotNull(completed.CompletedAt);
 
-        var listAfterComplete = await client.GetAsync($"/api/projects/{projectId}/tasks");
+        var listAfterComplete = await client.GetAsync($"/api/tasks?projectId={projectId}");
         var listAfterCompleteBody = await listAfterComplete.Content.ReadFromJsonAsync<List<TaskResponse>>();
         Assert.Contains(listAfterCompleteBody!, t => t.Id == created.Id && t.IsComplete);
 
         // Uncomplete
-        var uncompleteResponse = await client.PutAsync($"/api/tasks/{created.Id}/uncomplete", null);
+        var uncompleteResponse = await client.PatchAsJsonAsync($"/api/tasks/{created.Id}", new PatchTaskRequest { IsComplete = false });
         Assert.Equal(HttpStatusCode.OK, uncompleteResponse.StatusCode);
         var uncompleted = await uncompleteResponse.Content.ReadFromJsonAsync<TaskResponse>();
         Assert.NotNull(uncompleted);
@@ -394,7 +400,7 @@ public class TaskEndpointsTests : IDisposable
         var deleteResponse = await client.DeleteAsync($"/api/tasks/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
-        var listAfterDelete = await client.GetAsync($"/api/projects/{projectId}/tasks");
+        var listAfterDelete = await client.GetAsync($"/api/tasks?projectId={projectId}");
         var listAfterDeleteBody = await listAfterDelete.Content.ReadFromJsonAsync<List<TaskResponse>>();
         Assert.DoesNotContain(listAfterDeleteBody!, t => t.Id == created.Id);
     }
@@ -406,14 +412,14 @@ public class TaskEndpointsTests : IDisposable
         var projectId = await CreateProjectAsync(client, "Work");
         var task = await CreateTaskAsync(client, projectId, "Ship it");
 
-        var firstResponse = await client.PutAsync($"/api/tasks/{task.Id}/complete", null);
+        var firstResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest { IsComplete = true });
         firstResponse.EnsureSuccessStatusCode();
         var firstCompleted = await firstResponse.Content.ReadFromJsonAsync<TaskResponse>();
         Assert.NotNull(firstCompleted!.CompletedAt);
 
         // Re-completing an already-complete task is a no-op: the original timestamp is preserved
         // rather than being reset to "now".
-        var secondResponse = await client.PutAsync($"/api/tasks/{task.Id}/complete", null);
+        var secondResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest { IsComplete = true });
         secondResponse.EnsureSuccessStatusCode();
         var secondCompleted = await secondResponse.Content.ReadFromJsonAsync<TaskResponse>();
 
@@ -428,8 +434,9 @@ public class TaskEndpointsTests : IDisposable
 
         var projectId = await CreateProjectAsync(client, "Project");
 
-        var response = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new CreateTaskRequest
+        var response = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest
         {
+            ProjectId = projectId,
             Title = new string('a', 201),
         });
 
@@ -443,8 +450,9 @@ public class TaskEndpointsTests : IDisposable
 
         var projectId = await CreateProjectAsync(client, "Project");
 
-        var response = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new CreateTaskRequest
+        var response = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest
         {
+            ProjectId = projectId,
             Title = "Some task",
             Description = new string('a', 2001),
         });
@@ -463,8 +471,9 @@ public class TaskEndpointsTests : IDisposable
 
         var projectId = await CreateProjectAsync(client, "Project");
 
-        var response = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new CreateTaskRequest
+        var response = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest
         {
+            ProjectId = projectId,
             Title = "",
         });
 
@@ -482,7 +491,7 @@ public class TaskEndpointsTests : IDisposable
 
         var projectId = await CreateProjectAsync(client, "Project");
 
-        var response = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new { });
+        var response = await client.PostAsJsonAsync("/api/tasks", new { projectId });
 
         await AssertBadRequestNamingTitleAsync(response);
     }
@@ -495,8 +504,8 @@ public class TaskEndpointsTests : IDisposable
         var projectId = await CreateProjectAsync(client, "Project");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/projects/{projectId}/tasks",
-            new { title = (string?)null });
+            "/api/tasks",
+            new { projectId, title = (string?)null });
 
         await AssertBadRequestNamingTitleAsync(response);
     }
@@ -515,8 +524,9 @@ public class TaskEndpointsTests : IDisposable
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/projects/999999/tasks", new CreateTaskRequest
+        var response = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest
         {
+            ProjectId = 999999,
             Title = "Some task",
         });
 
@@ -528,7 +538,7 @@ public class TaskEndpointsTests : IDisposable
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PutAsJsonAsync("/api/tasks/999999", new UpdateTaskRequest
+        var response = await client.PatchAsJsonAsync("/api/tasks/999999", new PatchTaskRequest
         {
             Title = "Doesn't matter",
         });
@@ -544,17 +554,17 @@ public class TaskEndpointsTests : IDisposable
         var projectId = await CreateProjectAsync(client, "Project");
         var task = await CreateTaskAsync(client, projectId, "Original");
 
-        var completeResponse = await client.PutAsync($"/api/tasks/{task.Id}/complete", null);
+        var completeResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest { IsComplete = true });
         Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
 
         // Editing a completed task is a business-rule violation -> 403, and nothing is persisted.
-        var updateResponse = await client.PutAsJsonAsync($"/api/tasks/{task.Id}", new UpdateTaskRequest
+        var updateResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest
         {
             Title = "Edited while complete",
         });
         Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
 
-        var listResponse = await client.GetAsync($"/api/projects/{projectId}/tasks");
+        var listResponse = await client.GetAsync($"/api/tasks?projectId={projectId}");
         var listBody = await listResponse.Content.ReadFromJsonAsync<List<TaskResponse>>();
         Assert.Contains(listBody!, t => t.Id == task.Id && t.Title == "Original");
     }
@@ -567,7 +577,7 @@ public class TaskEndpointsTests : IDisposable
         var projectId = await CreateProjectAsync(client, "Project");
         var task = await CreateTaskAsync(client, projectId, "Original");
 
-        var updateResponse = await client.PutAsJsonAsync($"/api/tasks/{task.Id}", new UpdateTaskRequest
+        var updateResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest
         {
             Title = "Edited",
             Description = "New description",

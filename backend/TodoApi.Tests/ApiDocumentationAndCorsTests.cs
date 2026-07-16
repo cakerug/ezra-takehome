@@ -67,7 +67,7 @@ public class ApiDocumentationAndCorsTests : IDisposable
 
         var paths = document.RootElement.GetProperty("paths");
         Assert.True(paths.TryGetProperty("/api/projects", out _));
-        Assert.True(paths.TryGetProperty("/api/projects/{projectId}/tasks", out _));
+        Assert.True(paths.TryGetProperty("/api/tasks", out _));
     }
 
     [Fact]

@@ -66,7 +66,8 @@ export function NewTaskForm({ projectId, onCreated, onCancel }: NewTaskFormProps
 
   const mutation = useMutation({
     mutationFn: () =>
-      createTask(projectId, {
+      createTask({
+        projectId,
         title,
         ...(description.trim() ? { description } : {}),
       }),

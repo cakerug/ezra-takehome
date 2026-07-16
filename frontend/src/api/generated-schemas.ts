@@ -37,17 +37,22 @@ const TaskResponse = z.object({
   createdAt: z.string().datetime({ offset: true }),
 });
 const CreateTaskRequest = z.object({
+  projectId: z.number().int(),
   title: z.string().min(1).max(200),
   description: z.string().max(2000).nullish(),
 });
+const PatchTaskRequest = z
+  .object({
+    title: z.string().min(1).max(200).nullable(),
+    description: z.string().max(2000).nullable(),
+    isComplete: z.boolean().nullable(),
+    projectId: z.number().int().nullable(),
+  })
+  .partial();
 const ReorderTasksRequest = z.object({
+  projectId: z.number().int(),
   orderedTaskIds: z.array(z.number().int()),
 });
-const UpdateTaskRequest = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(2000).nullish(),
-});
-const MoveTaskRequest = z.object({ targetProjectId: z.number().int() });
 
 export const schemas = {
   ProjectResponse,
@@ -56,9 +61,8 @@ export const schemas = {
   UpdateProjectRequest,
   TaskResponse,
   CreateTaskRequest,
+  PatchTaskRequest,
   ReorderTasksRequest,
-  UpdateTaskRequest,
-  MoveTaskRequest,
 };
 
 export type ProjectResponse = z.infer<typeof ProjectResponse>;
@@ -67,6 +71,5 @@ export type ReorderProjectsRequest = z.infer<typeof ReorderProjectsRequest>;
 export type UpdateProjectRequest = z.infer<typeof UpdateProjectRequest>;
 export type TaskResponse = z.infer<typeof TaskResponse>;
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequest>;
+export type PatchTaskRequest = z.infer<typeof PatchTaskRequest>;
 export type ReorderTasksRequest = z.infer<typeof ReorderTasksRequest>;
-export type UpdateTaskRequest = z.infer<typeof UpdateTaskRequest>;
-export type MoveTaskRequest = z.infer<typeof MoveTaskRequest>;
