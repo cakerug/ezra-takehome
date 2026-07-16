@@ -42,16 +42,9 @@ export function ActionMenu({ buttonLabel, items, className }: ActionMenuProps) {
         setIsOpen(false);
       }
     }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
     document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
@@ -60,7 +53,23 @@ export function ActionMenu({ buttonLabel, items, className }: ActionMenuProps) {
     : `action-menu${className ? ` ${className}` : ''}`;
 
   return (
-    <div className={wrapperClass} ref={wrapperRef}>
+    <div
+      className={wrapperClass}
+      ref={wrapperRef}
+      // Escape closes the menu. Handled here (not a document-level listener) so it works when the
+      // menu is opened inside a `Dialog`, whose root stops keydown propagation to the document; and
+      // so stopping propagation closes just the menu rather than also closing the dialog behind it.
+      onKeyDown={
+        isOpen
+          ? (event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setIsOpen(false);
+              }
+            }
+          : undefined
+      }
+    >
       <button
         type="button"
         className="action-menu__trigger"

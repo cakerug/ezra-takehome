@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
@@ -43,15 +44,18 @@ export function ConfirmDialog({
     cancelButtonRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isConfirming) {
-        onCancel();
-      }
+  // Escape cancels the prompt. Handled on the dialog root (not a document-level listener) so that
+  // when this prompt is nested inside another `Dialog`, stopping propagation cancels *this* prompt
+  // without the Escape also bubbling up and closing the dialog behind it.
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') {
+      return;
     }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isConfirming, onCancel]);
+    event.stopPropagation();
+    if (!isConfirming) {
+      onCancel();
+    }
+  }
 
   // Portaled to <body> rather than rendered in place: the task delete confirmation is opened from
   // inside a draggable row that has its own pointer/keyboard listeners for dnd-kit -- without a
@@ -66,6 +70,7 @@ export function ConfirmDialog({
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-message"
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={handleKeyDown}
       >
         <h2 id="confirm-dialog-title" className="confirm-dialog__title">
           {title}

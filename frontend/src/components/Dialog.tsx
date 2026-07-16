@@ -25,16 +25,6 @@ export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
     dialogRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   // Portaled to <body> rather than rendered in place: some callers (e.g. TaskDetailDialog) open
   // this from inside a draggable row that has its own pointer/keyboard listeners for dnd-kit --
   // without a portal, keystrokes typed into this dialog's fields would bubble through that row's
@@ -45,6 +35,12 @@ export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
   // handle) would otherwise reach the ancestor row's dnd-kit `onPointerDown` and start dragging the
   // row behind the dialog. Stopping pointer/keydown propagation at the dialog root keeps all input
   // contained to the modal.
+  //
+  // Escape is handled here on the dialog root rather than via a document-level listener: the
+  // keydown `stopPropagation` below (needed for the dnd containment above) also halts the *native*
+  // event, so a document listener would never see it. Handling it locally also makes nesting work
+  // -- a child modal (ConfirmDialog / ActionMenu) that stops Escape from bubbling cancels itself
+  // without also closing the dialog behind it.
   return createPortal(
     <div className="dialog__overlay" role="presentation" onClick={onClose}>
       <div
@@ -57,7 +53,12 @@ export function Dialog({ title, ariaLabel, onClose, children }: DialogProps) {
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            onClose();
+          }
+          event.stopPropagation();
+        }}
       >
         {title && (
           <h2 id="dialog-title" className="dialog__title">
