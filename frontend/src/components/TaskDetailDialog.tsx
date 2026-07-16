@@ -32,8 +32,9 @@ interface TaskDetailDialogProps {
  * inline; anything else surfaces in the app-level toast, matching the rest of the app.
  *
  * Completed tasks are locked for editing (mirroring the backend's 403 guard): the fields become
- * read-only and Save is hidden, but the complete/uncomplete checkbox still works so the user can
- * reopen the task and then edit it. Complete/uncomplete is a separate, un-buffered mutation.
+ * read-only and Save is hidden, leaving the secondary button (which reads "Close" instead of
+ * "Cancel") as the dialog's only visible exit. The complete/uncomplete checkbox still works so the
+ * user can reopen the task and then edit it -- it is a separate, un-buffered mutation.
  *
  * A top-right "…" `ActionMenu` surfaces the same secondary actions as the row's own overflow menu
  * -- move to another project and delete -- mirroring `TaskItem`'s menu construction exactly (move
@@ -192,16 +193,19 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
             onChange={(event) => setDescription(event.target.value)}
           />
           {inlineError && <p className="task-detail__error">{inlineError}</p>}
-          {!isLocked && (
-            <div className="task-detail__actions">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={requestClose}
-                disabled={updateMutation.isPending}
-              >
-                Cancel
-              </button>
+          <div className="task-detail__actions">
+            {/* Renders even when locked: it is the only visible way out of the dialog, since a
+                locked task has no Save to sit beside. Reads "Close" rather than "Cancel" there
+                because there are no pending edits to abandon. */}
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={requestClose}
+              disabled={updateMutation.isPending}
+            >
+              {isLocked ? 'Close' : 'Cancel'}
+            </button>
+            {!isLocked && (
               <button
                 type="button"
                 className="btn btn--primary"
@@ -210,8 +214,8 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
               >
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

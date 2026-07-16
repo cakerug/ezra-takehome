@@ -356,8 +356,8 @@ describe('TaskList', () => {
       });
     });
 
-    // No unsaved changes remain, so Close doesn't prompt for discard.
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    // No unsaved changes remain, so closing doesn't prompt for discard.
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByText('New title')).toBeInTheDocument();
     expect(screen.queryByText('Old title')).not.toBeInTheDocument();
   });
@@ -385,7 +385,13 @@ describe('TaskList', () => {
       'readonly',
     );
     expect(within(dialog).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/Completed tasks are locked/)).toBeInTheDocument();
+
+    // Hiding Save must not take the close affordance with it: this button is the locked dialog's
+    // only visible exit, so losing it strands the user on Escape/backdrop alone.
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('prompts to discard unsaved changes when closing a dirty detail view', async () => {
@@ -403,7 +409,7 @@ describe('TaskList', () => {
     // Make the buffer dirty, then try to close: a discard confirmation appears.
     const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
     await user.type(titleInput, ' edited');
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
     const confirm = await screen.findByRole('alertdialog');
     expect(within(confirm).getByText('Discard changes?')).toBeInTheDocument();
@@ -414,7 +420,7 @@ describe('TaskList', () => {
     expect(mockUpdateTask).not.toHaveBeenCalled();
 
     // Confirming discard closes the detail view for good.
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
     await user.click(await screen.findByRole('button', { name: 'Discard' }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -433,7 +439,7 @@ describe('TaskList', () => {
     await user.click(screen.getByRole('button', { name: 'View "Old title"' }));
     await screen.findByRole('dialog');
 
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await waitFor(() => {

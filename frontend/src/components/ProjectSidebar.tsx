@@ -323,14 +323,18 @@ export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
       onSubmit={handleSubmit}
       aria-label={`Edit ${project.name}`}
     >
-      <label className="edit-project-form__field">
+      <div className="edit-project-form__field">
+        {/* This field renders no visible caption by design -- it's the dialog's only input, and
+            it's pre-filled with the project's name. aria-label is what keeps it from reaching
+            screen readers as an unnamed textbox. */}
         <input
           type="text"
+          aria-label="Name"
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
         />
-      </label>
+      </div>
       {errorMessage && <p className="edit-project-form__error">{errorMessage}</p>}
       <div className="edit-project-form__actions">
         <button
