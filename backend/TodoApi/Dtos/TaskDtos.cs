@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TodoApi.Models;
 
 namespace TodoApi.Dtos;
 
@@ -10,10 +11,10 @@ namespace TodoApi.Dtos;
 /// </summary>
 public class CreateTaskRequest
 {
-    [Required, MaxLength(200)]
+    [Required, MaxLength(FieldLengths.TaskTitle)]
     public string? Title { get; set; }
 
-    [MaxLength(2000)]
+    [MaxLength(FieldLengths.TaskDescription)]
     public string? Description { get; set; }
 }
 
@@ -23,10 +24,10 @@ public class CreateTaskRequest
 /// </summary>
 public class UpdateTaskRequest
 {
-    [Required, MaxLength(200)]
+    [Required, MaxLength(FieldLengths.TaskTitle)]
     public string? Title { get; set; }
 
-    [MaxLength(2000)]
+    [MaxLength(FieldLengths.TaskDescription)]
     public string? Description { get; set; }
 }
 

@@ -1,14 +1,16 @@
 using System.ComponentModel.DataAnnotations;
+using TodoApi.Models;
 
 namespace TodoApi.Dtos;
 
 /// <summary>
-/// Request body for creating a new project. <see cref="Name"/> is validated (required, max 200
-/// chars) by the Minimal API validation filter before the handler runs.
+/// Request body for creating a new project. <see cref="Name"/> is validated (required, max
+/// <see cref="FieldLengths.ProjectName"/> chars) by the Minimal API validation filter before the
+/// handler runs.
 /// </summary>
 public class CreateProjectRequest
 {
-    [Required, MaxLength(200)]
+    [Required, MaxLength(FieldLengths.ProjectName)]
     public string? Name { get; set; }
 }
 
@@ -18,7 +20,7 @@ public class CreateProjectRequest
 /// </summary>
 public class UpdateProjectRequest
 {
-    [Required, MaxLength(200)]
+    [Required, MaxLength(FieldLengths.ProjectName)]
     public string? Name { get; set; }
 }
 

@@ -16,9 +16,12 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Non-nullable properties (Project.Name, TaskItem.Title, TaskItem.ProjectId) are already
+        // mapped as required by EF's nullable-reference-type convention, so IsRequired() would
+        // only restate what the property declarations say.
         modelBuilder.Entity<Project>(entity =>
         {
-            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.Name).HasMaxLength(FieldLengths.ProjectName);
         });
 
         // SQLite has no datetime column type, so EF stores DateTimes as bare text and reads them
@@ -32,8 +35,8 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<TaskItem>(entity =>
         {
-            entity.Property(t => t.Title).IsRequired().HasMaxLength(200);
-            entity.Property(t => t.Description).HasMaxLength(2000);
+            entity.Property(t => t.Title).HasMaxLength(FieldLengths.TaskTitle);
+            entity.Property(t => t.Description).HasMaxLength(FieldLengths.TaskDescription);
 
             entity.Property(t => t.CreatedAt).HasConversion(utcDateTime);
             entity.Property(t => t.CompletedAt).HasConversion(utcDateTime);
@@ -41,7 +44,6 @@ public class AppDbContext : DbContext
             entity.HasOne(t => t.Project)
                 .WithMany(p => p.Tasks)
                 .HasForeignKey(t => t.ProjectId)
-                .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
