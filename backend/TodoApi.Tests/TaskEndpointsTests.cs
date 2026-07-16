@@ -471,6 +471,45 @@ public class TaskEndpointsTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // Posts anonymous objects rather than a CreateTaskRequest so the body can omit title
+    // entirely -- a case the typed DTO can't express, and one that binds differently from
+    // both an empty string and an explicit null. Title must be rejected by the validation
+    // filter (400 naming the field), not by System.Text.Json, which would surface as a 500.
+    [Fact]
+    public async Task CreatingTaskWithAbsentTitle_Returns400NamingTitle()
+    {
+        var client = _factory.CreateClient();
+
+        var projectId = await CreateProjectAsync(client, "Project");
+
+        var response = await client.PostAsJsonAsync($"/api/projects/{projectId}/tasks", new { });
+
+        await AssertBadRequestNamingTitleAsync(response);
+    }
+
+    [Fact]
+    public async Task CreatingTaskWithNullTitle_Returns400NamingTitle()
+    {
+        var client = _factory.CreateClient();
+
+        var projectId = await CreateProjectAsync(client, "Project");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/tasks",
+            new { title = (string?)null });
+
+        await AssertBadRequestNamingTitleAsync(response);
+    }
+
+    private static async Task AssertBadRequestNamingTitleAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Contains("Title", problem!.Errors.Keys);
+    }
+
     [Fact]
     public async Task CreatingTaskInNonexistentProject_Returns404()
     {

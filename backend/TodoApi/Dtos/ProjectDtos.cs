@@ -10,6 +10,12 @@ namespace TodoApi.Dtos;
 /// </summary>
 public class CreateProjectRequest
 {
+    // Nullable despite [Required], and deliberately not the `required` keyword. This models
+    // untrusted wire input: a client can omit Name or send it as null, so null is a genuine
+    // state of this type between binding and validation. [Required] rejects both cases in the
+    // validation filter before any handler runs, which is what lets callers dereference Name
+    // with `!`. The `required` keyword would instead make System.Text.Json throw on an absent
+    // Name, turning a clean field-level 400 into a 500.
     [Required, MaxLength(FieldLengths.ProjectName)]
     public string? Name { get; set; }
 }
