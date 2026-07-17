@@ -77,7 +77,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithMethods("GET", "POST", "PUT", "DELETE")
+        policy.WithMethods("GET", "POST", "PATCH", "PUT", "DELETE")
             .WithHeaders("Content-Type");
 
         // In development the SPA's port is not fixed — dev tooling may assign a free

@@ -125,6 +125,17 @@ public static class TaskOperations
         return ToResponse(task);
     }
 
+    // Every reorder rewrites the whole project's Order sequence to a dense 0..N-1 run, rather than
+    // computing a position for just the moved task (e.g. splitting the gap between its new
+    // neighbors). Gap/fractional keys avoid rewriting the whole list, but they eventually run out
+    // of room between two adjacent keys and need periodic renormalization -- rewriting everything
+    // on every move sidesteps that class of bug entirely, at the cost of an O(N) write per reorder.
+    //
+    // That cost is also why this doesn't scale to pagination: the client must hold and submit the
+    // full task-ID set for the project (see the SetEquals check below), and this method touches
+    // every row. If a project's task list ever needs to be paginated, this whole-list rewrite has
+    // to be replaced with a scheme where a single move only touches the moved row (e.g. fractional
+    // position keys), so the client only needs the page it can see.
     public static async Task<List<TaskResponse>> ReorderAsync(AppDbContext db, ReorderTasksRequest request)
     {
         var projectId = request.ProjectId;
