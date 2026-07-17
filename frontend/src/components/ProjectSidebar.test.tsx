@@ -26,11 +26,17 @@ const mockCreateProject = vi.mocked(createProject);
 const mockUpdateProject = vi.mocked(updateProject);
 const mockDeleteProject = vi.mocked(deleteProject);
 
-const inbox: ProjectResponse = { id: 1, name: 'Inbox', order: 0 };
+const inbox: ProjectResponse = {
+  id: 1,
+  name: 'Inbox',
+  order: 0,
+  createdAt: '2026-01-01T00:00:00Z',
+};
 const work: ProjectResponse = {
   id: 2,
   name: 'Work',
   order: 1,
+  createdAt: '2026-01-01T00:00:00Z',
 };
 
 function renderSidebar() {
@@ -94,6 +100,7 @@ describe('ProjectSidebar', () => {
       id: 3,
       name: 'Groceries',
       order: 2,
+      createdAt: '2026-01-01T00:00:00Z',
     };
     mockCreateProject.mockResolvedValueOnce(created);
     mockListProjects.mockResolvedValueOnce([inbox, created]);
@@ -155,6 +162,7 @@ describe('ProjectSidebar', () => {
       id: 2,
       name: 'Work Renamed',
       order: 1,
+      createdAt: '2026-01-01T00:00:00Z',
     };
     mockUpdateProject.mockResolvedValueOnce(updated);
     const onDone = vi.fn();
