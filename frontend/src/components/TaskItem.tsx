@@ -5,7 +5,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { deleteTask, patchTask } from '../api/client';
 import { toToastMessage } from '../api/errors';
-import { showErrorToast } from '../toastBus';
+import { showErrorToast, showSuccessToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
 import { ActionMenu, type ActionMenuEntry } from './ActionMenu';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -100,8 +100,13 @@ export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemP
 
   const toggleCompleteMutation = useMutation({
     mutationFn: () => patchTask(task.id, { isComplete: !task.isComplete }),
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
       invalidateTasks();
+      // Only on completing, not uncompleting -- there's no "Save" button on this row for the
+      // toast to otherwise stand in for, so it confirms the toggle took effect on the server.
+      if (updatedTask.isComplete) {
+        showSuccessToast(`"${updatedTask.title}" marked complete`);
+      }
     },
     onError: (error: unknown) => {
       showErrorToast(toToastMessage(error));

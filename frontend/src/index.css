@@ -20,6 +20,7 @@
   --accent-hover: #234ec0;
   --danger: #8f2f2f;
   --danger-hover: #a52626;
+  --success: #2f6d3f;
 
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -685,6 +686,10 @@ button:disabled {
   border-radius: 8px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
   z-index: 200;
+}
+
+.toast--success {
+  background: var(--success);
 }
 
 .toast__message {

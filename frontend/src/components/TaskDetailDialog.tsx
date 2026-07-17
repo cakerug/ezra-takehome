@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteTask, patchTask } from '../api/client';
 import { extractFieldErrors, toToastMessage } from '../api/errors';
-import { showErrorToast } from '../toastBus';
+import { showErrorToast, showSuccessToast } from '../toastBus';
 import type { ProjectResponse, TaskResponse } from '../api/generated-schemas';
 import { ActionMenu, type ActionMenuEntry } from './ActionMenu';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -68,7 +68,14 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
 
   const toggleCompleteMutation = useMutation({
     mutationFn: () => patchTask(task.id, { isComplete: !task.isComplete }),
-    onSuccess: invalidateTasks,
+    onSuccess: (updatedTask) => {
+      invalidateTasks();
+      // Only on completing, not uncompleting -- the checkbox here isn't part of the "Save" flow,
+      // so the toast is what tells the user this took effect immediately, separately from Save.
+      if (updatedTask.isComplete) {
+        showSuccessToast(`"${updatedTask.title}" marked complete`);
+      }
+    },
     onError: (error: unknown) => {
       showErrorToast(toToastMessage(error));
     },
