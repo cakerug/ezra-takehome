@@ -311,6 +311,22 @@ Modals render through a single generic `Dialog` (distinct from `ConfirmDialog`, 
 - Project actions (Edit + Delete) were consolidated into a single "…" menu next to the content-area title, rather than being scattered on each sidebar row.
 - Project and task creation are now on-demand inline forms (revealed by an "Add" affordance) instead of always-present forms / dialogs, which also let me drop the now-empty "No tasks yet." text since the Add button conveys the empty state.
 
+#### Move-to-project menu: flat list today, doesn't scale to many projects
+
+The "Move to" entries in `ActionMenu` (`TaskDetailDialog`'s `menuItems`, and `TaskItem`'s equivalent) are a plain `.map()` over every other project into individual menu buttons — no grouping, no search, no virtualization. `ActionMenu` itself (above) is a hand-rolled popover built for short, fixed action lists (Edit/Delete); it was reused here for a list whose length is actually unbounded (the project count), which is the real mismatch.
+
+**Two separable problems, not one:**
+1. **The list has no search or nesting once it's long.** Fine at a handful of projects; unusable once there are dozens — a user has to scroll a popover to find one project by eye.
+2. **It's tucked inside a "…" overflow menu at all**, on the task detail dialog specifically, where that's the wrong trade-off: a row's inline overflow menu has to stay compact (it's competing with the row for space), but the dialog is a dedicated, already-open surface with room to spare. Burying project selection one level deeper there just to reuse the row's menu shape costs a click for no space savings.
+
+**What I'd reach for instead of hand-rolling further:**
+- **For (1), a search-filterable combobox rather than a longer flat list.** [cmdk](https://cmdk.paco.me/) is the natural fit — it's the "type to filter a list of commands" primitive (built-in fuzzy filtering, ARIA combobox semantics, keyboard nav for free), unstyled so it drops into the existing BEM system without fighting a component library's own CSS. Radix's `DropdownMenu` (already a natural sibling to `ActionMenu`'s pattern) doesn't include search/filtering itself — it would need a search input bolted on with the same manual wiring `cmdk` already does. A heavier option like `react-select`/`downshift` brings more than this needs (multi-select, async loading, opinionated styling to override).
+   - **Cheaper alternative worth trying first:** a plain `<input>` filtering `otherProjects` client-side above the existing flat list — no new dependency, and project counts in this app are nowhere near where scrolling actually hurts yet (same "not needed today" reasoning as Search/filtering under Backend at scale). This is the "don't reach for a library before the simple thing is proven insufficient" move; `cmdk` is the upgrade path once nesting or fuzzy match actually earns its weight.
+   - **Nested sublists** aren't a real need yet either — there's no sub-project/folder concept in the data model (flat `Project` list only), so "nested" is speculative until that exists. If it does, `cmdk`'s command-groups (or Radix `DropdownMenu.Sub`) both support that shape natively rather than needing a bespoke tree popover.
+- **For (2), give the task detail dialog its own inline project picker in the body** (a `<select>` or the same combobox as above, rendered directly among the title/description fields) instead of routing "move" through the "…" menu at all. The row's compact `ActionMenu` would keep its flat "Move to" list (space there is genuinely constrained), but the dialog — which already affords more layout room than a row — doesn't need to inherit that constraint just because it currently reuses the same menu component for consistency.
+
+**Verdict:** not implemented — no project count in this app is remotely close to making the current flat list painful, so this would be over-building ahead of the actual pain point (same instinct as the pagination/search deferrals elsewhere in this doc). Recorded so the choice (search-filterable combobox in the overflow menu, plus a dedicated inline picker in the dialog specifically) doesn't need re-deriving once project counts or a sub-project concept make it worth doing.
+
 #### Other UX/interaction polish
 
 - Collapsible project sidebar.
