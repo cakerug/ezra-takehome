@@ -2,27 +2,46 @@
 
 This is a take-home project for an interview.
 
-## Scope
+## Product Scope
 
-I chose these features based on the minimal features required to make a useful todo app. There are many ways to use a todo app so this supports the use case of organizing several lists of tasks that you want to sequence in a specific order.
-
-At a base level, you must be able to:
+At a base level, a Todo app must be able to:
 - Create tasks
+- View tasks
 - Update tasks
 - Check off tasks
-- View your tasks
 
-To make it more useful, I added several features:
-- Add more details to a task
-- Create projects that contain tasks
-- Move tasks between projects
-- Delete projects and tasks (tasks are deleted with the project)
-- Reorder tasks within a project
-- Reorder projects
+I settled on adding these organizational features that I feel are the minimum features needed to make a todo app useful:
+- **Projects**: You need to be able to group tasks. This allows different contexts of tasks to exist in one application (e.g., a grocery list vs a chore list vs a work list).
+  - Create projects that contain tasks
+  - Move tasks between projects
+  - Delete projects and tasks (tasks are deleted with the project)
+- **Reordering Tasks**: You need to be able reorder tasks in order to sequence them according to whatever criteria makes sense to you (priority or the chronological order you want to do them in).
+
+Then I added a few more features that I feel are tablestakes for user experience:
 - Quick entry of multiple tasks
+- Add a description to a task
 - Hiding the projects sidebar to focus on a specific list
+- Reorder projects
 
-The only missing feature for a production-ready app is authentication. I felt it was out of scope for this take-home exercise. I would most likely not reinvent the wheel and use something off-the-shelf like Auth0.
+
+## Backend Scope
+
+The backend features I decided to include were driven by three things:
+1. production-readiness (security, maintainability, debuggability)
+2. how easy it was to implement (if it was a few lines and isolated to one file, I'd generally add it)
+3. demonstrating concepts for an interview
+
+The backend features I added:
+- Interactive API docs (Swagger UI) are available at `http://localhost:5265/swagger` once the
+  server is running.
+- A liveness endpoint is exposed at `http://localhost:5265/health` (returns `200 Healthy`) for
+  uptime checks.
+
+Missing features for a production-ready app:
+- **authentication**: I felt it was out of scope for this take-home exercise. I would most likely not reinvent the wheel and use something off-the-shelf like Auth0.
+- Error tracking/observability (e.g., Sentry)
+- Product analytics (e.g., Google Analytics, Pendo, Amplitude)
+
 
 ## Setup
 
@@ -42,10 +61,6 @@ dotnet run
 - On first run, EF Core migrations apply automatically and the database is seeded with a couple of example projects and tasks.
 - The SQLite database file is created alongside the project (`todo.db`); data persists across
   restarts.
-- Interactive API docs (Swagger UI) are available at `http://localhost:5265/swagger` once the
-  server is running.
-- A liveness endpoint is exposed at `http://localhost:5265/health` (returns `200 Healthy`) for
-  uptime checks.
 
 Run the backend test suite (xUnit unit + integration tests, including cascade-delete against a
 real SQLite connection) from `backend/`:
@@ -70,8 +85,7 @@ npm run dev
   gitignored).
 - The backend's CORS policy explicitly allows `http://localhost:5173` as the frontend origin; if
   you change the frontend's dev port, update the CORS policy in `backend/TodoApi/Program.cs` too.
-    - Can make this a shared .env variable through scripts, but fine here.
-    - In practice, I actually made CORS open in my local development but added restrictions for production readiness
+    - Can make this a shared .env variable through scripts, but fine for this application
 
 Run the frontend test suite (Vitest + React Testing Library component tests) from `frontend/`:
 
@@ -80,7 +94,7 @@ cd frontend
 npm test
 ```
 
-Other useful scripts: `npm run build` (type-check + production build), `npm run lint` (oxlint).
+Other useful scripts: `npm run build` (type-check + production build), `npm run lint`
 
 ## AI Usage
 I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed their own code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I used Every's compound engineering plugin's plan skill which applies agents that have different focuses (e.g., security, user experience, etc) to evaluate the plans from different perspectives.
@@ -107,6 +121,10 @@ Some core changes I made to what the LLM built:
 ```
 UI (React) --REST/JSON--> API (ASP.NET Core Minimal API) --EF Core--> SQLite file
 ```
+
+---
+
+TODO continue here
 
 ## Trade-offs and assumptions
 
