@@ -477,6 +477,13 @@ button:disabled {
   background: var(--bg);
 }
 
+/* `.task-item`'s own `display: flex` (a class selector) otherwise beats the UA stylesheet's
+   `[hidden] { display: none }` (an attribute selector, lower specificity) -- without this, a
+   folded-away completed row's `hidden` attribute would be set but have no visual effect. */
+.task-item[hidden] {
+  display: none;
+}
+
 .task-item--dragging {
   /* The floating .task-item--overlay clone (see below) is what follows the cursor -- this is just
      the vacated slot left behind in the list, faded so it doesn't compete with the overlay. */
@@ -609,6 +616,36 @@ button:disabled {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.task-list__completed-toggle-row {
+  padding: 4px 10px;
+}
+
+.task-list__completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.task-list__completed-chevron {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid var(--text-muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.12s ease;
+}
+
+.task-list__completed-chevron--open {
+  transform: rotate(90deg);
 }
 
 .task-list__add-button {

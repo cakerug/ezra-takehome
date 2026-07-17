@@ -37,6 +37,10 @@ interface TaskItemProps {
   /** Only incomplete tasks participate in drag-to-reorder; completed ones render without drag
    * behavior since they're pinned to the bottom regardless of order. */
   isDraggable: boolean;
+  /** Collapses this row via the native `hidden` attribute (used for folded-away completed tasks)
+   * rather than skipping its render entirely, so the row -- and any dialog state it owns -- stays
+   * mounted while the "completed" group is collapsed. */
+  hidden?: boolean;
 }
 
 /**
@@ -53,7 +57,7 @@ interface TaskItemProps {
  * Failures surface in the app-level toast (via `showErrorToast`); the delete dialog additionally
  * stays open so the user can retry in place.
  */
-export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
+export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemProps) {
   const queryClient = useQueryClient();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -166,6 +170,7 @@ export function TaskItem({ task, otherProjects, isDraggable }: TaskItemProps) {
       ref={setNodeRef}
       style={style}
       className={rowClassName}
+      hidden={hidden}
       {...(isDraggable ? rowPointerListeners : {})}
     >
       <button

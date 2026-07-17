@@ -20,7 +20,7 @@ import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import { NewTaskForm } from './NewTaskForm';
 import { TaskItem, TaskItemOverlay } from './TaskItem';
-import { sortTasks, computeReorderedIds } from './taskOrdering';
+import { sortIncompleteTasks, sortCompletedTasks, computeReorderedIds } from './taskOrdering';
 
 interface TaskListProps {
   projectId: number;
@@ -41,6 +41,10 @@ export function TaskList({ projectId }: TaskListProps) {
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
+  // Completed tasks fold into their own group, shown by default. Collapsing/expanding is
+  // session-only UI state (not persisted) -- it's not about remembering a preference so much as
+  // a quick way to get clutter out of the way for a moment.
+  const [showCompleted, setShowCompleted] = useState(true);
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', projectId],
@@ -112,13 +116,14 @@ export function TaskList({ projectId }: TaskListProps) {
     return <p className="task-list__status">Loading tasks…</p>;
   }
 
-  const sorted = tasks ? sortTasks(tasks) : [];
-  const incompleteIds = sorted.filter((task) => !task.isComplete).map((task) => task.id);
-  const activeTask = activeId === null ? undefined : sorted.find((task) => task.id === activeId);
+  const incomplete = tasks ? sortIncompleteTasks(tasks) : [];
+  const completed = tasks ? sortCompletedTasks(tasks) : [];
+  const incompleteIds = incomplete.map((task) => task.id);
+  const activeTask = activeId === null ? undefined : tasks?.find((task) => task.id === activeId);
 
   return (
     <div className="task-list">
-      {sorted.length > 0 && (
+      {(incomplete.length > 0 || completed.length > 0) && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -126,16 +131,53 @@ export function TaskList({ projectId }: TaskListProps) {
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveId(null)}
         >
+          {/* Completed tasks stay in this same <ul> (rather than a separate list rendered only
+              when expanded) so that completing/un-completing a task -- which moves it between the
+              incomplete rows and the folded group below -- is a same-parent reorder, not an
+              unmount/remount. That matters because a task's detail dialog is state owned by its
+              `TaskItem`: toggling "complete" from inside that dialog must not silently close it
+              out from under the user. Collapsing the group hides its rows with the native `hidden`
+              attribute (not conditional rendering) for the same reason.
+
+              Rows are built as one combined array, rather than three adjacent JSX expressions
+              (incomplete.map, a conditional toggle row, completed.map), because React only matches
+              keys *within* a single array during reconciliation -- across separate sibling arrays
+              a same-keyed element is torn down and rebuilt rather than moved, which is exactly the
+              remount this structure exists to avoid. */}
           <SortableContext items={incompleteIds} strategy={verticalListSortingStrategy}>
             <ul className="task-list__items">
-              {sorted.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  otherProjects={otherProjects}
-                  isDraggable={!task.isComplete}
-                />
-              ))}
+              {[
+                ...incomplete.map((task) => (
+                  <TaskItem key={task.id} task={task} otherProjects={otherProjects} isDraggable />
+                )),
+                ...(completed.length > 0
+                  ? [
+                      <li key="completed-toggle-row" className="task-list__completed-toggle-row">
+                        <button
+                          type="button"
+                          className="task-list__completed-toggle"
+                          onClick={() => setShowCompleted((prev) => !prev)}
+                          aria-expanded={showCompleted}
+                        >
+                          <span
+                            className={`task-list__completed-chevron${showCompleted ? ' task-list__completed-chevron--open' : ''}`}
+                            aria-hidden="true"
+                          />
+                          {completed.length} completed
+                        </button>
+                      </li>,
+                    ]
+                  : []),
+                ...completed.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    otherProjects={otherProjects}
+                    isDraggable={false}
+                    hidden={!showCompleted}
+                  />
+                )),
+              ]}
             </ul>
           </SortableContext>
           <DragOverlay>{activeTask && <TaskItemOverlay task={activeTask} />}</DragOverlay>
