@@ -1,8 +1,5 @@
 Leave this hand-written by me right now - do not edit this if you are an LLM/agent. If you have a suggestion, suggest it and I will incorporate it if I think that's good.
 
-# AI Flow
-I had AI (fable) generate a plan, reviewed the plan, execute on the plan, review their own code and then I stepped through the main parts I thought were important (under Decisions made). Notably at the planning stage and code review stages, I used Every's compound engineering plugin's plan skill which applies agents that have different focuses (e.g., security, user experience, etc) to evaluate the code thoroughly. You can see the plan it generated in docs/plans.
-
 # Decisions made:
 Almost everything (or maybe everything here) is what I would do as this scales. There are a few dimensions to evaluate scale at: users, product surface area, developer team. Though, they tend to move together, I like to think of them separately.
 
@@ -14,10 +11,6 @@ The decisions I made were based on:
 - something that I would actually use
 - making it production-ready (as a local app of course since I didn't add auth)
 - Honestly, I was somewhat playing with the power of Fable also so some things I probably wouldn't have spent as much time on.
-
-## Product decisions
-- I drew inspiration from Todoist and Google Tasks
-- TODO: fill this in
 
 ## Backend
 - **API Versioning**: Did not version the API. In practice, for small-scale apps this adds additional work and is unnecessary. You can deploy during low-traffic time to avoid any mismatches.

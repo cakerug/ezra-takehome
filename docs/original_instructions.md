@@ -66,8 +66,10 @@ Ezra thinks you have a great background and is excited to move you forward in th
 Build a small to-do task management API and frontend. This test evaluates:
 
 ● Backend API design. Please use .NET Core.  
+
 ● Data structure design. Please use SQL Lite or EF Core in memory.  
 ● Frontend component design. Please use React or Vue.  
+
 ● Communication between frontend and backend.  
 ● Clean code, architecture structure, and thought process.  
 ● Trade-offs and assumptions.  

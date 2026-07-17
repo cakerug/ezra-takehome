@@ -1,22 +1,35 @@
 # Todo Task Management App
 
-A single-user, no-login to-do app: tasks (title, description) live inside projects (name,
-description), including a seeded, undeletable default "Inbox" project for anything not explicitly
-organized. Tasks can be manually reordered within a project and moved between any projects,
-Inbox included. Checking a task off completes it rather than deleting it; deleting a non-default
-project cascades to delete its tasks, gated by a confirmation dialog.
+This is a take-home project for an interview.
 
-Built for Ezra's Full Stack Developer take-home. The full implementation plan (Product Contract,
-Planning Contract, and per-unit implementation detail) lives at
-`docs/plans/2026-07-02-001-feat-todo-task-management-plan.md`; this README summarizes the parts
-of that document a reviewer needs without requiring the whole plan to be read first.
+## Scope
+
+I chose these features based on the minimal features required to make a useful todo app. There are many ways to use a todo app so this supports the use case of organizing several lists of tasks that you want to sequence in a specific order.
+
+At a base level, you must be able to:
+- Create tasks
+- Update tasks
+- Check off tasks
+- View your tasks
+
+To make it more useful, I added several features:
+- Add more details to a task
+- Create projects that contain tasks
+- Move tasks between projects
+- Delete projects and tasks (tasks are deleted with the project)
+- Reorder tasks within a project
+- Reorder projects
+- Quick entry of multiple tasks
+- Hiding the projects sidebar to focus on a specific list
+
+The only missing feature for a production-ready app is authentication. I felt it was out of scope for this take-home exercise. I would most likely not reinvent the wheel and use something off-the-shelf like Auth0.
 
 ## Setup
 
 ### Prerequisites
 
 - .NET SDK 10.0 (the backend targets `net10.0`)
-- Node.js (a recent LTS; developed against Node via `fnm`) and npm
+- Node.js
 
 ### Backend
 
@@ -26,18 +39,13 @@ dotnet run
 ```
 
 - Serves on `http://localhost:5265` by default (see `Properties/launchSettings.json`).
-- On first run, EF Core migrations apply automatically and the database is seeded with the
-  default "Inbox" project plus a couple of example projects and tasks, so the app is populated
-  immediately rather than starting blank.
+- On first run, EF Core migrations apply automatically and the database is seeded with a couple of example projects and tasks.
 - The SQLite database file is created alongside the project (`todo.db`); data persists across
   restarts.
 - Interactive API docs (Swagger UI) are available at `http://localhost:5265/swagger` once the
   server is running.
 - A liveness endpoint is exposed at `http://localhost:5265/health` (returns `200 Healthy`) for
   uptime checks.
-- Each request is tagged with a correlation ID (read from the `X-Correlation-Id` request header or
-  generated), echoed back in the response header of the same name and included in every log line
-  emitted while handling the request, so a request can be traced end-to-end in the console output.
 
 Run the backend test suite (xUnit unit + integration tests, including cascade-delete against a
 real SQLite connection) from `backend/`:
@@ -62,6 +70,8 @@ npm run dev
   gitignored).
 - The backend's CORS policy explicitly allows `http://localhost:5173` as the frontend origin; if
   you change the frontend's dev port, update the CORS policy in `backend/TodoApi/Program.cs` too.
+    - Can make this a shared .env variable through scripts, but fine here.
+    - In practice, I actually made CORS open in my local development but added restrictions for production readiness
 
 Run the frontend test suite (Vitest + React Testing Library component tests) from `frontend/`:
 
@@ -72,13 +82,21 @@ npm test
 
 Other useful scripts: `npm run build` (type-check + production build), `npm run lint` (oxlint).
 
+## AI Usage
+I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed their own code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I used Every's compound engineering plugin's plan skill which applies agents that have different focuses (e.g., security, user experience, etc) to evaluate the plans from different perspectives.
+
+Some core changes I made to what the LLM built:
+- changed the API - it had more "RPC"-style but I prefer how it is now
+- I changed how it handled backend-frontend communicate to have the shapes generated for the frontend, making the backend the source of truth here. The LLM had already enabled Swagger, so this wasn't that much more work.
+- They used render-props for project selection where simple lifted state management was sufficient
+- It originally used MVC controllers, but with services but I simplified it to use the Minimal API because it removed a lot of unnecessary layers of indirection.
+
 ## Architecture
 
 - **Backend:** ASP.NET Core Minimal API (no MVC controllers) + EF Core over SQLite. Business
   logic lives in plain static "operations" functions per entity (`ProjectOperations`,
   `TaskOperations`) rather than a repository/service layer. Cross-cutting concerns — a global
-  exception-handling middleware mapping errors to `ProblemDetails`, a correlation-ID middleware
-  for structured logging, and field validation helpers — sit in front of the endpoints.
+  exception-handling middleware mapping errors to `ProblemDetails`, and field validation helpers — sit in front of the endpoints.
 - **Frontend:** React + TypeScript + Vite. `@tanstack/react-query` owns server state (fetching,
   caching, mutation lifecycle) instead of hand-rolled fetch/useState. `@dnd-kit/core` drives
   drag-and-drop reordering within a project. A small typed `fetch` wrapper (`api/client.ts`)
