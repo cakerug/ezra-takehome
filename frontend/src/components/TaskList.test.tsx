@@ -38,8 +38,18 @@ const mockPatchTask = vi.mocked(patchTask);
 const mockDeleteTask = vi.mocked(deleteTask);
 const mockReorderTasks = vi.mocked(reorderTasks);
 
-const inbox: ProjectResponse = { id: 1, name: 'Inbox', order: 0 };
-const work: ProjectResponse = { id: 2, name: 'Work', order: 1 };
+const inbox: ProjectResponse = {
+  id: 1,
+  name: 'Inbox',
+  order: 0,
+  createdAt: '2026-01-01T00:00:00Z',
+};
+const work: ProjectResponse = {
+  id: 2,
+  name: 'Work',
+  order: 1,
+  createdAt: '2026-01-01T00:00:00Z',
+};
 
 function makeTask(overrides: Partial<TaskResponse>): TaskResponse {
   return {
