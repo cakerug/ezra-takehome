@@ -20,12 +20,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SupportNonNullableReferenceTypes());
 builder.Services.AddHealthChecks();
 
-// Native Minimal API DataAnnotations validation (new in .NET 10). Runs as an endpoint filter
+// Native "Minimal API" DataAnnotations validation (new in .NET 10). Runs as an endpoint filter
 // before the handler executes, short-circuiting with its own 400 response — it does NOT throw,
 // so ExceptionHandlingMiddleware never sees these failures. AddProblemDetails routes that
 // response through IProblemDetailsService instead, aligning its Content-Type/status with
 // ExceptionHandlingMiddleware's hand-thrown ValidationException path; CustomizeProblemDetails
 // adds the one field (Instance) that service doesn't set by default.
+// That way, error-handling on the frontend can be the same
 builder.Services.AddValidation();
 builder.Services.AddProblemDetails(options =>
 {
@@ -39,26 +40,11 @@ var securityHeadersPolicies = new HeaderPolicyCollection()
     .AddDefaultSecurityHeaders()
     .AddContentSecurityPolicy(csp => csp.AddDefaultSrc().Self());
 
-// Origin(s) the SPA is served from, for CORS. Read from configuration (env var `FrontendOrigins`,
-// comma-separated for multiple) so the dev port isn't baked in and can be overridden per run;
-// defaults to Vite's default dev port. No credentials/cookies are involved (no auth yet), so a
-// simple allow-list plus the methods/headers the API actually uses is enough — no AllowCredentials
-// or wildcard origin needed.
-var frontendOrigins = (builder.Configuration["FrontendOrigins"] ?? "http://localhost:5173")
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-// Fixed-window: simplest and cheapest of the built-in algorithms (fixed window, sliding window,
-// token bucket, concurrency). Sliding window would smooth out the boundary-burst behavior fixed
-// window has, but that smoothing is overkill for this app's traffic pattern (a handful of CRUD
-// endpoints, no public/adversarial traffic). Token bucket — which allows bursts up to a capacity
-// while enforcing a long-run average — could make sense for a bulk-import-style endpoint, but
-// that's a different endpoint shape than what exists here.
-//
-// This limiter is in-memory and per-process. In a horizontally-scaled deployment (multiple
-// backend instances behind a load balancer), each instance would enforce its own limit
-// independently, so the effective limit multiplies with instance count. A production system at
-// that scale would centralize counters in a shared store (e.g. Redis) or enforce the limit at
-// the load balancer / API gateway instead of in-process.
+// It's always a bit safer to have a rate limiter even though I don't anticipate anything to happen!
+// This was quick and easy to add in dotnet.
+// Use a fixed-window b/c it's simplest. Could change it to sliding window if needed.
+// If we ended up scaling this, you would use a different service so that it gets an idea of global traffic instead of
+// per-server. 
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -73,6 +59,11 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+// Origin(s) the SPA is served from, for CORS. Read from configuration (env var `FrontendOrigins`,
+// comma-separated for multiple) so the dev port isn't baked in and can be overridden per run;
+// defaults to Vite's default dev port.
+var frontendOrigins = (builder.Configuration["FrontendOrigins"] ?? "http://localhost:5173")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
@@ -80,10 +71,13 @@ builder.Services.AddCors(options =>
         policy.WithMethods("GET", "POST", "PATCH", "PUT", "DELETE")
             .WithHeaders("Content-Type");
 
-        // In development the SPA's port is not fixed — dev tooling may assign a free
-        // port (e.g. Vite's autoPort) that differs per run — so allow any loopback
-        // origin instead of a baked-in list. No credentials/cookies are involved, so
-        // this is safe. Production stays locked to the configured allow-list.
+        // In development the SPA's port is not fixed — dev tooling assigns a free
+        // port (e.g. Vite's autoPort) that differs per run. I did this because I had
+        // multiple agents changing the frontend at the same time and testing the changes.
+        // So this allows any localhost origin instead of a baked-in list.
+        // The only risk is another localhost. But fine for this app.
+        // No credentials/cookies are involved.
+        // Production stays locked to the configured allow-list.
         if (builder.Environment.IsDevelopment())
         {
             policy.SetIsOriginAllowed(origin =>
@@ -124,8 +118,7 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseRateLimiter();
 
-// Liveness probe for uptime checks / container orchestrators. Cheap production-readiness signal;
-// returns 200 "Healthy" without touching the database.
+// Liveness probe for uptime checks / container orchestrators.
 app.MapHealthChecks("/health");
 
 app.MapProjectEndpoints();
@@ -133,6 +126,7 @@ app.MapTaskEndpoints();
 
 app.Run();
 
+// For testing
 public partial class Program
 {
 }
