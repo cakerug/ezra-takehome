@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
 
+// Have to set Foreign Keys=True to have cascade deletes work
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Data Source=todo.db;Foreign Keys=True";
 

@@ -7,14 +7,14 @@ namespace TodoApi.Tests;
 
 /// <summary>
 /// Exercises the EF Core data model against a REAL SQLite database (a temp file), not the
-/// EF Core InMemory provider. InMemory does not model foreign-key constraints or cascade
+/// EF Core InMemory provider for testing. InMemory does not model foreign-key constraints or cascade
 /// behavior at all, so it would give a false-positive pass here regardless of whether the
-/// "Foreign Keys=True" pragma is actually wired up correctly. That pragma is the single most
-/// load-bearing, least obvious decision in this project: SQLite has FK enforcement OFF by
-/// default per-connection, and EF Core's cascade-delete only reaches the database (as opposed
-/// to just cascading in-memory for entities already tracked in the current DbContext) when a
-/// project's tasks are NOT currently loaded into the DbContext doing the deleting. Miss the
-/// pragma, and that exact path silently leaves orphaned task rows with no error thrown.
+/// "Foreign Keys=True" pragma is actually wired up correctly.
+/// 
+/// SQLite has FK enforcement OFF by default per-connection, and EF Core's cascade-delete only
+/// cascades for in-memory entities already tracked in the current DbContext, and defers to the
+/// db's behavior for the task rows not loaded in memory. If you miss the "Foreign Keys=True" pragma,
+/// that may silently orphan task rows with no error thrown.
 /// </summary>
 public class DataModelTests : IDisposable
 {

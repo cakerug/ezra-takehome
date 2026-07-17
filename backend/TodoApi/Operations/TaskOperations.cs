@@ -60,15 +60,6 @@ public static class TaskOperations
         await db.SaveChangesAsync();
     }
 
-    /// <summary>
-    /// Applies whichever fields are present on <paramref name="request"/>. Move (<see
-    /// cref="PatchTaskRequest.ProjectId"/>) and the complete/uncomplete toggle (<see
-    /// cref="PatchTaskRequest.IsComplete"/>) are applied first, in that order, so a request that
-    /// both uncompletes a task and edits its title in the same call is evaluated against the
-    /// task's *resulting* state -- the completed-task edit lock below only sees the state as of
-    /// after any move/toggle in this same request, matching how the equivalent sequence of
-    /// separate requests would have behaved.
-    /// </summary>
     public static async Task<TaskResponse> PatchAsync(AppDbContext db, int id, PatchTaskRequest request)
     {
         var task = await FindTaskOrThrowAsync(db, id);
@@ -83,6 +74,12 @@ public static class TaskOperations
             task.Order = nextOrder;
         }
 
+        // This must happen before the title/description update because if you are updating the
+        // task's isComplete status and title/description in the same request, the task must be
+        // updated. In practice, the frontend does not do this right now since it updates
+        // the complete and the title/description separately.
+        // Could potentially change the API to have separate endpoints for completion vs title/description updates,
+        // but a single PATCH felt more understandable as an API.
         if (request.IsComplete is bool isComplete && task.IsComplete != isComplete)
         {
             // Idempotent: a repeat of the same state is a no-op (guarded by the `!=` above), so
@@ -117,25 +114,18 @@ public static class TaskOperations
 
         // If the target project (on a move) is deleted concurrently between the check above and
         // this save, SQLite's FK enforcement rejects the UPDATE and EF Core throws
-        // DbUpdateException, which ExceptionHandlingMiddleware maps to a clean 409 Conflict. No
-        // re-check needed here — a re-check can't close the window anyway (the delete can still
-        // land after it).
+        // DbUpdateException, which ExceptionHandlingMiddleware maps to a clean 409 Conflict.
+        // This rolls back the whole transaction of changes above.
         await db.SaveChangesAsync();
 
         return ToResponse(task);
     }
 
     // Every reorder rewrites the whole project's Order sequence to a dense 0..N-1 run, rather than
-    // computing a position for just the moved task (e.g. splitting the gap between its new
-    // neighbors). Gap/fractional keys avoid rewriting the whole list, but they eventually run out
-    // of room between two adjacent keys and need periodic renormalization -- rewriting everything
-    // on every move sidesteps that class of bug entirely, at the cost of an O(N) write per reorder.
-    //
-    // That cost is also why this doesn't scale to pagination: the client must hold and submit the
-    // full task-ID set for the project (see the SetEquals check below), and this method touches
-    // every row. If a project's task list ever needs to be paginated, this whole-list rewrite has
-    // to be replaced with a scheme where a single move only touches the moved row (e.g. fractional
-    // position keys), so the client only needs the page it can see.
+    // computing a position for just the moved task which would be frought with bugs. Alternatives are to use
+    // fractional keys to avoid rewriting the whole list, but you eventually need to renormalize.
+    // This sidesteps that complexity, at the cost of an O(N) write per reorder which is okay up until large scale.
+    // Other alternative is to use lexicographical ranks. Also additional complexity for now.
     public static async Task<List<TaskResponse>> ReorderAsync(AppDbContext db, ReorderTasksRequest request)
     {
         var projectId = request.ProjectId;
