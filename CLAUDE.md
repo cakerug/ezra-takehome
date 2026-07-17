@@ -1,1 +1,0 @@
-There is no remote branch right now so don't bother running any commands to confirm that when you commit and merge changes.
