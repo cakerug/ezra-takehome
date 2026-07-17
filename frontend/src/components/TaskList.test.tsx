@@ -244,13 +244,50 @@ describe('TaskList', () => {
       expect(mockPatchTask).toHaveBeenCalledWith(1, { isComplete: true });
     });
 
-    // After refetch: "First" is struck through and ordered after "Second".
+    // After refetch: "First" is struck through and ordered after "Second", under the "completed"
+    // toggle (default expanded, so it's still visible without an extra click).
     const titleFirst = await screen.findByText('First');
     expect(titleFirst).toHaveClass('task-item__title--complete');
+    expect(screen.getByRole('button', { name: '1 completed' })).toBeInTheDocument();
 
-    const items = screen.getAllByRole('listitem');
+    const items = screen
+      .getAllByRole('listitem')
+      .filter((item) => within(item).queryByRole('checkbox'));
     const titles = items.map((item) => within(item).queryByText(/First|Second/)?.textContent);
     expect(titles).toEqual(['Second', 'First']);
+  });
+
+  it('collapses and expands the completed group without closing that task\'s open detail dialog', async () => {
+    const user = userEvent.setup();
+    const open = makeTask({ id: 1, title: 'Open task', order: 0 });
+    const done = makeTask({
+      id: 2,
+      title: 'Done task',
+      order: 1,
+      isComplete: true,
+      completedAt: '2026-07-01T00:00:00Z',
+    });
+    mockListTasks.mockResolvedValue([open, done]);
+
+    renderTaskList();
+
+    await screen.findByText('Open task');
+    expect(await screen.findByText('Done task')).toBeInTheDocument();
+
+    // Collapse the completed group: the row is hidden via the native `hidden` attribute, not
+    // unmounted, so it's still in the DOM but no longer visible/accessible.
+    await user.click(screen.getByRole('button', { name: '1 completed' }));
+    expect(screen.getByText('Done task')).not.toBeVisible();
+
+    // Expand again: it's visible.
+    await user.click(screen.getByRole('button', { name: '1 completed' }));
+    expect(await screen.findByText('Done task')).toBeVisible();
+
+    // Opening its detail dialog, then collapsing the group, must not blow away the dialog's state.
+    await user.click(screen.getByRole('button', { name: 'View "Done task"' }));
+    const dialog = await screen.findByRole('dialog');
+    const titleInput = within(dialog).getByRole('textbox', { name: 'Task title' });
+    expect(titleInput).toHaveValue('Done task');
   });
 
   it('reopening a completed task calls patchTask with isComplete: false and removes the completed styling (AE1)', async () => {
