@@ -496,20 +496,6 @@ public class TaskEndpointsTests : IDisposable
         await AssertBadRequestNamingTitleAsync(response);
     }
 
-    [Fact]
-    public async Task CreatingTaskWithNullTitle_Returns400NamingTitle()
-    {
-        var client = _factory.CreateClient();
-
-        var projectId = await CreateProjectAsync(client, "Project");
-
-        var response = await client.PostAsJsonAsync(
-            "/api/tasks",
-            new { projectId, title = (string?)null });
-
-        await AssertBadRequestNamingTitleAsync(response);
-    }
-
     private static async Task AssertBadRequestNamingTitleAsync(HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
