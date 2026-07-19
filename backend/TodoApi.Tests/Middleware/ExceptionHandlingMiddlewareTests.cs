@@ -160,7 +160,7 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
 
         public static IResult Forbidden()
         {
-            throw new ForbiddenOperationException("The Inbox project cannot be deleted.");
+            throw new ForbiddenOperationException("This operation is not allowed.");
         }
 
         public static IResult Conflict()
