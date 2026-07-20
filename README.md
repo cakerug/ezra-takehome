@@ -120,36 +120,22 @@ Some core changes I made to what the LLM built:
 UI (React) --REST/JSON--> API (ASP.NET Core Minimal API) --EF Core--> SQLite file
 ```
 
----
+## Trade-offs / key decisions made
 
-TODO: continue editing from here
+The decisions I made were based on:
+- not trying to over-engineer something -- focusing on what would be necessary for a solo developer product
+- any explicit criteria called out in the instructions
+- something that I would actually use
+- making it production-ready (as a local app of course since I didn't add auth)
 
-
-## Trade-offs and assumptions
-
-- **Mutations are pessimistic, not optimistic-with-rollback.** The UI doesn't reflect a create,
-  edit, delete, move, or reorder until the server confirms it; failures surface via inline
-  field errors (validation) or a toast (everything else) without ever showing a stale/incorrect
-  state. Simpler to implement correctly than optimistic updates with rollback, at the cost of a
-  small perceived-latency hit.
-- **Errors distinguish validation failures from everything else.** A 400 naming a specific field
-  (e.g., "Title must be at most 200 characters") renders inline next to that field on the
-  create/edit forms. Anything else — network failure, 500, a stale-resource 404 — surfaces via a
-  generic toast, since there's no single field to attach it to.
-- **Reordering resends the full ordered task-ID list**, and the backend renumbers sequentially.
-  Simpler than a single-item move-with-reindex endpoint or fractional-index bookkeeping, and
-  perfectly fine at single-user scale.
-- **Completed tasks stay inline** (struck through, sorted to the bottom of their project) rather
-  than moving to a separate "completed" view — keeps the list a single source of truth per
-  project.
-- **Field limits:** task title and project name are required, max 200 characters; task
-  description and project description are optional, max 2000 characters.
-- This app is local/dev-oriented given the no-auth design and is **not intended for public
-  internet exposure** — stated here explicitly rather than left as an assumption a reviewer has
-  to infer.
-- **No security headers or HTTPS redirection.** Appropriate for a localhost dev app, but before
-  any public exposure I'd add HSTS, `X-Content-Type-Options: nosniff`, a request-size limit, and
-  TLS termination — alongside the authentication and rate limiting noted below.
+- **Frontend-Backend Communication**:
+    - **Typesafety**: Although kind of unnecessary for an app this scale (developer of 1), because it was explicitly mentioned that one of the evaluation criteria was in this area and because the OpenAPI endpoint was easy to generate, I implemented zod for compile time and runtime type checking. I did not add CI/CD for ensuring the generated types were validated.
+    - **Query Framework**: I used react-query because our product/data schema is simple and it gives free caching, retry, request deduping, etc. Instead of configuring it with a longer staleTime or any optimistic writes, I erred towards more refetching because it's cheap, esp with react-query's caching and refetch in background and request deduping. The caching also makes it easy to avoid prop-drilling without paying for an extra fetch. React-query also gives retry, loading/error states for free.
+- **Mutations are mostly pessimistic, not optimistic-with-rollback.** The UI doesn't reflect a create, edit, delete, or moving between projects, instead it invalidates the relevant cache with react-query and re-fetches. Simpler to implement correctly than optimistic updates with rollback, at the cost of a small perceived-latency hit. The only exception is reordering which looked jumpy if we did that.
+- **API Versioning**: Did not version the API. In practice, for small-scale apps this adds additional work and is unnecessary. You can deploy during low-traffic time to avoid any mismatches.
+- **State management**: Didn't use redux/zustand or even contexts -- unnecessary for this small app. Didn't have that much state to manage.
+- **Style system**: Decided on a BEM (Block-Element-Modifier) style system because it's simple and works for a single developer. Likely the next step at scale is to evolve this to CSS Modules to avoid possible class name conflicts. That would have been easy enough to do since [Vite enables this](https://vite.dev/guide/features#css-modules).
+ 
 
 ## Future Work
 
@@ -168,6 +154,9 @@ There are many directions to take a todo app after the above (e.g., an inbox, sc
 
 ### At Scale
 - Move off of SQLite, something relational would work well - e.g., postgres
+- Move to an API Gateway with a rate limiter, load balancer, etc. Remove the in-memory rate-limiter we have right now.
 - Infinite scroll
-- Move to an API Gateway with a rate limiter, load balancer, etc
-- Reordering tasks takes the entire list of tasks right now - would need to change that for large task lists
+- Reordering tasks takes the entire list of tasks right now. This was a reasonable trade-off for simplicity but would need to change that for large task lists.
+- CI/CD for generated types, running tests, etc.
+- I don't log client-side errors to anything. Would add Sentry at scale (also for the backend, but there are at least server-side logs for that right now)
+- Product analytics (e.g., Pendo, Amplitude)
