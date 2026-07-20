@@ -103,11 +103,6 @@ Some core changes I made to what the LLM built:
 - They used render-props for project selection when simple lifted state management was sufficient
 - It originally used MVC controllers with services but I simplified it to use the Minimal API because it removed a lot of unnecessary layers of indirection.
 
----
-
-TODO: continue editing from here
-
-
 ## Architecture
 
 - **Backend:** ASP.NET Core Minimal API (no MVC controllers) + EF Core over SQLite. Business
@@ -119,43 +114,19 @@ TODO: continue editing from here
   drag-and-drop reordering within a project. A small typed `fetch` wrapper (`api/client.ts`)
   centralizes the base URL and JSON handling and normalizes error responses into an `ApiError`
   carrying the parsed `ProblemDetails` body.
-- **Communication:** REST/JSON over CORS, no auth headers or cookies (see "Trade-offs" below).
+- **Communication:** REST/JSON.
 
 ```
 UI (React) --REST/JSON--> API (ASP.NET Core Minimal API) --EF Core--> SQLite file
 ```
 
+---
+
+TODO: continue editing from here
+
+
 ## Trade-offs and assumptions
 
-These are deliberate scope decisions, not oversights — each traded some capability for a simpler,
-more defensible MVP within the take-home's scope.
-
-- **Single user, no authentication.** No login, no multi-tenancy. Called out explicitly rather
-  than left implicit, since it's the biggest thing separating this from a deployable product.
-- **Manual order instead of a priority field.** Reordering tasks within a project already lets the
-  user express "do this before that" — a standalone priority field would just be a second,
-  possibly-conflicting way to express the same intent, so it was cut.
-- **Inbox is a real, seeded, undeletable project, not a null-project sentinel.** Every task always
-  has a real `ProjectId`. This keeps move/reorder/delete logic uniform — moving a task to Inbox is
-  exactly the same code path as moving it anywhere else — at the cost of one guard clause
-  preventing the Inbox row itself from being deleted.
-- **Project deletion cascades to its tasks, gated by a confirmation dialog.** Simpler data model
-  than reassigning orphaned tasks to Inbox on delete, offset by requiring explicit user
-  confirmation before anything destructive happens.
-- **SQLite foreign-key enforcement had to be explicitly turned on** (`Foreign Keys=True` in the
-  connection string). Unlike Postgres, SQLite disables FK enforcement by default per connection,
-  and the cascade-delete-at-the-database-level path (as opposed to EF Core cascading only
-  already-tracked in-memory entities) silently no-ops without it — with no error raised. This is
-  the most load-bearing and least obvious technical decision in the project, and it's covered by
-  a dedicated integration test against a real SQLite connection (not EF Core's InMemory provider,
-  which doesn't model FK/cascade behavior at all).
-- **No repository or injected-service layer over EF Core.** Plain static functions taking
-  `AppDbContext` directly give the reuse-across-endpoints and test-without-HTTP benefits a service
-  layer would provide, without the class/interface/DI ceremony that would add indirection with no
-  behavioral payoff at this scale.
-- **Move-to-project is a dropdown, not cross-project drag-and-drop.** The API contract
-  (`PUT /api/tasks/{id}/move`) is the same either way, so this is a frontend-only simplification —
-  upgrading to drag-and-drop later wouldn't touch the backend.
 - **Mutations are pessimistic, not optimistic-with-rollback.** The UI doesn't reflect a create,
   edit, delete, move, or reorder until the server confirms it; failures surface via inline
   field errors (validation) or a toast (everything else) without ever showing a stale/incorrect
@@ -180,57 +151,23 @@ more defensible MVP within the take-home's scope.
   any public exposure I'd add HSTS, `X-Content-Type-Options: nosniff`, a request-size limit, and
   TLS termination — alongside the authentication and rate limiting noted below.
 
-### Known limitations accepted for this MVP
+## Future Work
 
-Small things I deliberately left as-is rather than build out, noted here so they're decisions
-rather than gaps:
+### Product Features
+- Authentication
+- Task search
+- Task labels
+- Subtasks
 
-- **The "move to project" control is a native `<select>`.** On some platforms, arrow-keying
-  through a closed select fires the move on each keystroke. The robust fix is a custom menu button;
-  it wasn't worth the extra component for this scope, and the API contract wouldn't change.
-- **The Inbox project can be renamed** (only its *deletion* is blocked). Renaming is harmless — it
-  stays the seeded default — so no guard was added.
-- **`ConfirmDialog` implements Escape-to-close and focus-on-open, but not a full focus trap.** The
-  two behaviors a user actually reaches for are covered; trapping Tab within the modal is the
-  remaining a11y refinement.
-- **Reordering is pessimistic and single-flight in spirit.** Starting a second drag before the
-  first reorder's response lands could compute from stale order; harmless at single-user scale, and
-  the backend rejects any task-set mismatch. Concurrent writes that do slip through (e.g. moving a
-  task into a project being deleted) return a `409 Conflict` rather than an opaque 500.
+There are many directions to take a todo app after the above (e.g., an inbox, scheduling, due dates, recurring tasks, etc) but, in my opinion, the above are the next layer of features that any todo app should have.
 
-## What I'd do differently at scale / future work
+### User experience polish
+- Drag and drop between projects
+- Better menu for moving projects
+- Better task detail view (make ... menu items easier to edit there)
 
-These are scope cuts made for this MVP, each with a clear next step if this were headed to
-production:
-
-- **Authentication and multi-user support.** The single biggest gap versus a real product. A next
-  version would add login, per-user data isolation, and probably a switch to a server that
-  supports concurrent multi-tenant access patterns (connection pooling, etc. — SQLite is fine for
-  a single local user but not for concurrent multi-user writes at scale).
-- **Due dates, scheduling, recurrence, and reminders.** Dropped entirely rather than deferred as a
-  "nice to have," since they represent a materially different feature set (calendar/scheduling
-  logic) than organization-and-completion. A next version would add a due-date field, a
-  notification/reminder mechanism, and probably a distinct "upcoming" view.
-- **Flat, non-nested projects and tasks.** No sub-projects or sub-tasks. A next version might add
-  a parent/child relationship, but that's a real data-model and UI change (indentation, recursive
-  queries), not a small addition.
-- **No rate limiting or abuse protection.** Reasonable to skip for a local, single-user, no-auth
-  app, but would be required before any public exposure, alongside auth.
-- **No horizontal scaling / multi-instance concerns.** The single SQLite file assumes a
-  single-instance deployment. A production version handling real concurrent load would move to a
-  networked database (e.g., Postgres) and stateless API instances behind a load balancer.
-- **Drag-and-drop is reorder-within-project only, not cross-project.** Moving between projects
-  uses a dropdown, which was a deliberate simplification (see Trade-offs); cross-project drag-and-
-  drop is a reasonable frontend-only enhancement later, since the backend `move` endpoint already
-  supports it.
-
-## How I verified it works
-
-- **Automated tests:** `dotnet test` (backend unit + integration tests, including cascade-delete
-  against a real SQLite connection, correlation-ID propagation into logs, and concurrent-update
-  conflict mapping) and `npm test` (frontend component tests with Vitest + React Testing Library,
-  mocking the API client) both pass with zero failures.
-- **Manual walkthrough:** ran both servers locally and walked the golden path in the browser —
-  create a project, add tasks, reorder them, move a task to another project, complete a task,
-  delete a task, delete a project (with confirmation) — checking the browser console for
-  unhandled errors at each step.
+### At Scale
+- Move off of SQLite, something relational would work well - e.g., postgres
+- Infinite scroll
+- Move to an API Gateway with a rate limiter, load balancer, etc
+- Reordering tasks takes the entire list of tasks right now - would need to change that for large task lists
