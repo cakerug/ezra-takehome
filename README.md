@@ -123,11 +123,7 @@ UI (React) --REST/JSON--> API (ASP.NET Core Minimal API) --EF Core--> SQLite fil
 
 ## Trade-offs / key decisions made
 
-The decisions I made were based on:
-- not trying to over-engineer something -- focusing on what would be necessary for a solo developer product
-- any explicit criteria called out in the instructions
-- something that I would actually use
-- making it production-ready (as a local app of course since I didn't add auth)
+The decisions I made were based on: (1) not trying to over-engineer something -- focusing on what would be necessary for a solo developer product; (2) any explicit criteria called out in the instructions; (3) something that I would actually use; (4) making it production-ready (within reason).
 
 - **Frontend-Backend Communication**:
     - **Typesafety**: Although kind of unnecessary for an app this scale (developer of 1), because it was explicitly mentioned that one of the evaluation criteria was in this area and because the OpenAPI endpoint was easy to generate, I implemented zod for compile time and runtime type checking. I did not add CI/CD for ensuring the generated types were validated.
