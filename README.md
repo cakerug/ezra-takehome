@@ -5,20 +5,18 @@ This is a take-home project for an interview.
 ## Product Scope
 
 At a base level, a Todo app must be able to:
-- Create tasks
-- View tasks
-- Update tasks
+- Create, read, update, delete tasks
+  - Creating multiple tasks should be easy
 - Check off tasks
 
-I settled on adding these organizational features that I feel are the minimum features needed to make a todo app useful:
+After that, I chose two organizational features that I think are the minimum needed to make a todo app useful:
 - **Projects**: You need to be able to group tasks. This allows different contexts of tasks to exist in one application (e.g., a grocery list vs a chore list vs a work list).
   - Create projects that contain tasks
   - Move tasks between projects
   - Delete projects and tasks (tasks are deleted with the project)
 - **Reordering Tasks**: You need to be able reorder tasks in order to sequence them according to whatever criteria makes sense to you (priority or the chronological order you want to do them in).
 
-Then I added a few more features that I feel are tablestakes for user experience:
-- Quick entry of multiple tasks
+Then I added a few more features for fun:
 - Add a description to a task
 - Hiding the projects sidebar to focus on a specific list
 - Reorder projects
@@ -97,13 +95,18 @@ npm test
 Other useful scripts: `npm run build` (type-check + production build), `npm run lint`
 
 ## AI Usage
-I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed their own code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I used Every's compound engineering plugin's plan skill which applies agents that have different focuses (e.g., security, user experience, etc) to evaluate the plans from different perspectives.
+I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed the code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I had agents with different focuses (e.g., security, user experience) evaluate the plans from different perspectives.
 
 Some core changes I made to what the LLM built:
-- changed the API - it had more "RPC"-style but I prefer how it is now
-- I changed how it handled backend-frontend communicate to have the shapes generated for the frontend, making the backend the source of truth here. The LLM had already enabled Swagger, so this wasn't that much more work.
-- They used render-props for project selection where simple lifted state management was sufficient
-- It originally used MVC controllers, but with services but I simplified it to use the Minimal API because it removed a lot of unnecessary layers of indirection.
+- changed the API - it had more "RPC"-style but I prefer more resource-based APIs. Easier to understand b/c it's more standardized.
+- I changed how it handled backend-frontend communicate to have the shapes generated for the frontend, making the backend the source of truth here. The LLM had already enabled Swagger (it is only a few lines), so this wasn't that much more work.
+- They used render-props for project selection when simple lifted state management was sufficient
+- It originally used MVC controllers with services but I simplified it to use the Minimal API because it removed a lot of unnecessary layers of indirection.
+
+---
+
+TODO: continue editing from here
+
 
 ## Architecture
 
@@ -121,10 +124,6 @@ Some core changes I made to what the LLM built:
 ```
 UI (React) --REST/JSON--> API (ASP.NET Core Minimal API) --EF Core--> SQLite file
 ```
-
----
-
-TODO continue here
 
 ## Trade-offs and assumptions
 
