@@ -34,6 +34,7 @@ The backend features I added:
   server is running.
 - A liveness endpoint is exposed at `http://localhost:5265/health` (returns `200 Healthy`) for
   uptime checks.
+- Rate limiter
 
 Missing features for a production-ready app:
 - **authentication**: I felt it was out of scope for this take-home exercise. I would most likely not reinvent the wheel and use something off-the-shelf like Auth0.
