@@ -139,24 +139,29 @@ The decisions I made were based on:
 
 ## Future Work
 
-### Product Features
+### Additional Product Features
 - Authentication
 - Task search
 - Task labels
 - Subtasks
+- Project / task urls - i.e., routing
 
 There are many directions to take a todo app after the above (e.g., an inbox, scheduling, due dates, recurring tasks, etc) but, in my opinion, the above are the next layer of features that any todo app should have.
 
 ### User experience polish
 - Drag and drop between projects
-- Better menu for moving projects
+- Better menu for moving projects (scroll)
 - Better task detail view (make ... menu items easier to edit there)
+- Toasts replace each other instead of stacking
 
 ### At Scale
 - Move off of SQLite, something relational would work well - e.g., postgres
 - Move to an API Gateway with a rate limiter, load balancer, etc. Remove the in-memory rate-limiter we have right now.
-- Infinite scroll
+- Infinite scroll (frontend virtulization) / pagination
 - Reordering tasks takes the entire list of tasks right now. This was a reasonable trade-off for simplicity but would need to change that for large task lists.
-- CI/CD for generated types, running tests, etc.
+- CI/CD for generated types, running tests
 - I don't log client-side errors to anything. Would add Sentry at scale (also for the backend, but there are at least server-side logs for that right now)
 - Product analytics (e.g., Pendo, Amplitude)
+- Switch ids from ints to uuids to make sharding easier (no id conflicts) 
+- More standardized validation layer (e.g., FluentValidation, ZodSharp)
+- e2e tests
