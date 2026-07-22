@@ -105,8 +105,8 @@ function App() {
     : (projects?.[0]?.id ?? null);
 
   return (
-    <div className={isSidebarCollapsed ? 'layout layout--sidebar-collapsed' : 'layout'}>
-      <aside className="layout__sidebar">
+    <div className="layout">
+      <aside className={isSidebarCollapsed ? 'layout__sidebar layout__sidebar--collapsed' : 'layout__sidebar'}>
         {isSidebarCollapsed ? (
           <button
             type="button"

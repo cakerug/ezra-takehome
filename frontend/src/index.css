@@ -135,7 +135,7 @@ button:disabled {
   background: var(--bg-muted);
 }
 
-.layout--sidebar-collapsed .layout__sidebar {
+.layout__sidebar--collapsed {
   width: 44px;
   background: transparent;
   border-right: none;
