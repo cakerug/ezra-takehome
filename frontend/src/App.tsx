@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listProjects } from './api/client';
+import type { ProjectResponse } from './api/generated-schemas';
 import { ActionMenu } from './components/ActionMenu';
 import { Dialog } from './components/Dialog';
 import {
@@ -21,14 +22,15 @@ function SidebarIcon() {
   );
 }
 
-function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProjectId }) {
-  // Shares the `['projects']` query cache with ProjectSidebar/App, so this doesn't trigger an
-  // extra network request.
-  const { data: projects, isLoading } = useQuery({
-    queryKey: ['projects'],
-    queryFn: listProjects,
-  });
-
+function ContentArea({
+  projects,
+  isLoading,
+  selectedProjectId,
+}: {
+  projects: ProjectResponse[] | undefined;
+  isLoading: boolean;
+  selectedProjectId: SelectedProjectId;
+}) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -93,20 +95,17 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<SelectedProjectId>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Shares the ['projects'] cache with ProjectSidebar/ContentArea, so this adds no extra request.
-  const { data: projects } = useQuery({
+  // Shares the ['projects'] cache with ProjectSidebar, so this adds no extra request. Also passed
+  // down to ContentArea so it doesn't need its own subscription.
+  const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
 
-  // Fall back to the first project whenever there's no selection yet or the selected project no
-  // longer exists (e.g. it was just deleted), so the view is never blank. Never overrides a
-  // still-valid user selection.
-  const selectionValid =
-    selectedProjectId !== null && projects?.some((project) => project.id === selectedProjectId);
-  const effectiveProjectId = selectionValid
-    ? selectedProjectId
-    : (projects?.[0]?.id ?? null);
+  // Fall back to the first project whenever there's no selection yet or the selected project was
+  // just deleted, so the view is never blank. Never overrides a still-valid user selection.
+  const selectedProject = projects?.find((project) => project.id === selectedProjectId);
+  const effectiveProjectId = selectedProject?.id ?? projects?.[0]?.id ?? null;
 
   return (
     <div className="layout">
@@ -140,7 +139,11 @@ function App() {
         )}
       </aside>
       <main className="layout__content">
-        <ContentArea selectedProjectId={effectiveProjectId} />
+        <ContentArea
+          projects={projects}
+          isLoading={isLoading}
+          selectedProjectId={effectiveProjectId}
+        />
       </main>
     </div>
   );
