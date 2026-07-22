@@ -99,7 +99,7 @@ Other useful scripts: `npm run build` (type-check + production build), `npm run 
 I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed the code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I had agents with different focuses (e.g., security, user experience) evaluate the plans from different perspectives.
 
 Some core changes I made to what the LLM built:
-- changed the API - it had more "RPC"-style but I prefer more resource-based APIs. Easier to understand b/c it's more standardized.
+- changed the API - it had more "RPC"-style but I prefer more resource-based APIs. Easier to understand b/c it's more standardized (RESTful). The original had tasks nested under projects but even though that's the current data architecture, I could easily see tasks living inside other containers like filtered lists or search results.
 - I changed how it handled backend-frontend communicate to have the shapes generated for the frontend, making the backend the source of truth here. The LLM had already enabled Swagger (it is only a few lines), so this wasn't that much more work.
 - They used render-props for project selection when simple lifted state management was sufficient
 - It originally used MVC controllers with services but I simplified it to use the Minimal API because it removed a lot of unnecessary layers of indirection.
@@ -154,7 +154,7 @@ There are many directions to take a todo app after the above (e.g., an inbox, sc
 ### At Scale
 - Move off of SQLite, something relational would work well - e.g., postgres
 - Move to an API Gateway with a rate limiter, load balancer, etc. Remove the in-memory rate-limiter we have right now.
-- Infinite scroll (frontend virtulization) / pagination
+- Infinite scroll (frontend virtualization) / pagination
 - Reordering tasks takes the entire list of tasks right now. This was a reasonable trade-off for simplicity but would need to change that for large task lists.
 - CI/CD for generated types, running tests
 - I don't log client-side errors to anything. Would add Sentry at scale (also for the backend, but there are at least server-side logs for that right now)
