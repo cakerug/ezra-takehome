@@ -24,7 +24,7 @@ function SidebarIcon() {
 function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProjectId }) {
   // Shares the `['projects']` query cache with ProjectSidebar/App, so this doesn't trigger an
   // extra network request.
-  const { data: projects } = useQuery({
+  const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
@@ -37,10 +37,14 @@ function ContentArea({ selectedProjectId }: { selectedProjectId: SelectedProject
       ? undefined
       : projects?.find((project) => project.id === selectedProjectId);
 
-  // No resolved selection yet -- the initial load before the projects query resolves and App
-  // can pick a default. Show a neutral placeholder rather than a blank pane.
   if (!selectedProject) {
-    return <p className="content__empty">Loading…</p>;
+    // Either the initial load (before the projects query resolves and App can pick a default),
+    // or the query resolved with no projects left (e.g. the last one was just deleted).
+    return (
+      <p className="content__empty">
+        {isLoading ? 'Loading…' : 'Create a project to get started'}
+      </p>
+    );
   }
 
   return (
