@@ -11,6 +11,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
+  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -20,7 +21,7 @@ import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import { NewTaskForm } from './NewTaskForm';
 import { TaskItem, TaskItemOverlay } from './TaskItem';
-import { sortIncompleteTasks, sortCompletedTasks, computeReorderedTasks } from './taskOrdering';
+import { sortIncompleteTasks, sortCompletedTasks } from './taskOrdering';
 
 interface TaskListProps {
   projectId: number;
@@ -88,12 +89,14 @@ export function TaskList({ projectId }: TaskListProps) {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
-    if (!tasks || !over) {
+    if (!tasks || !over || active.id === over.id) {
       return;
     }
 
-    const reordered = computeReorderedTasks(tasks, active.id, over.id);
-    if (!reordered) {
+    const sorted = [...tasks].sort((a, b) => a.order - b.order);
+    const oldIndex = sorted.findIndex((t) => t.id === active.id);
+    const newIndex = sorted.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) {
       return;
     }
 
@@ -102,6 +105,7 @@ export function TaskList({ projectId }: TaskListProps) {
     // its old slot until the server responds. `onSuccess` overwrites this with the server's
     // authoritative values; the per-drop `onError` rolls the cache back to `previous`.
     const previous = tasks;
+    const reordered = arrayMove(sorted, oldIndex, newIndex).map((t, i) => ({ ...t, order: i }));
     queryClient.setQueryData(['tasks', projectId], reordered);
     reorderMutation.mutate(reordered.map((t) => t.id), {
       onError: () => queryClient.setQueryData(['tasks', projectId], previous),
