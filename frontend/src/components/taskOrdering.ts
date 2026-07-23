@@ -23,18 +23,19 @@ export function sortCompletedTasks(tasks: TaskResponse[]): TaskResponse[] {
 }
 
 /**
- * Pure computation of the full ordered-id list to send to the `reorderTasks` endpoint, given a drag-end's
- * active/over ids. Only incomplete tasks are draggable, so completed ids are always appended
- * unchanged at the end. Returns `null` when the drag shouldn't produce a reorder (no-op drop, or
- * a drag involving a completed task). Extracted as a standalone, dnd-kit-independent function so
- * it can be unit tested directly with a plain `DragEndEvent`-shaped object, instead of relying on
- * dnd-kit's simulated pointer/keyboard sensors in jsdom (see test file for rationale).
+ * Pure computation of the full reordered task list after a drag-end, given the active/over ids.
+ * Returns tasks with `order` reassigned by position so the caller can write them straight into the
+ * query cache for the optimistic update, and extract `.map(t => t.id)` for the mutation payload.
+ * Only incomplete tasks are draggable, so completed tasks are always appended unchanged at the end.
+ * Returns `null` when the drag shouldn't produce a reorder (no-op drop, or a drag involving a
+ * completed task). Extracted as a standalone, dnd-kit-independent function so it can be unit tested
+ * directly with plain task objects instead of relying on dnd-kit's simulated sensors in jsdom.
  */
-export function computeReorderedIds(
+export function computeReorderedTasks(
   tasks: TaskResponse[],
   activeId: number | string,
   overId: number | string,
-): number[] | null {
+): TaskResponse[] | null {
   if (activeId === overId) {
     return null;
   }
@@ -46,10 +47,9 @@ export function computeReorderedIds(
     return null;
   }
 
-  const reordered = arrayMove(incomplete, oldIndex, newIndex);
-  const completedIds = tasks
+  const reorderedIncomplete = arrayMove(incomplete, oldIndex, newIndex);
+  const completed = tasks
     .filter((task) => task.isComplete)
-    .sort((a, b) => a.order - b.order)
-    .map((task) => task.id);
-  return [...reordered.map((task) => task.id), ...completedIds];
+    .sort((a, b) => a.order - b.order);
+  return [...reorderedIncomplete, ...completed].map((task, index) => ({ ...task, order: index }));
 }

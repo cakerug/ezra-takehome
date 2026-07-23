@@ -20,7 +20,7 @@ import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import { NewTaskForm } from './NewTaskForm';
 import { TaskItem, TaskItemOverlay } from './TaskItem';
-import { sortIncompleteTasks, sortCompletedTasks, computeReorderedIds } from './taskOrdering';
+import { sortIncompleteTasks, sortCompletedTasks, computeReorderedTasks } from './taskOrdering';
 
 interface TaskListProps {
   projectId: number;
@@ -92,22 +92,18 @@ export function TaskList({ projectId }: TaskListProps) {
       return;
     }
 
-    const orderedIds = computeReorderedIds(tasks, active.id, over.id);
-    if (!orderedIds) {
+    const reordered = computeReorderedTasks(tasks, active.id, over.id);
+    if (!reordered) {
       return;
     }
 
     // Optimistically apply the new order to the cache now, synchronously, so it batches with the
     // `setActiveId(null)` above -- the row stays where it was dropped instead of flashing back to
-    // its old slot until the server responds. `sortIncompleteTasks`/`sortCompletedTasks` order by each task's `order` field
-    // (not array position), so we reassign `order` by new index rather than just reordering the
-    // array. `onSuccess` overwrites this with the server's authoritative values; the per-drop
-    // `onError` rolls the cache back to `previous`.
+    // its old slot until the server responds. `onSuccess` overwrites this with the server's
+    // authoritative values; the per-drop `onError` rolls the cache back to `previous`.
     const previous = tasks;
-    const tasksById = new Map(tasks.map((task) => [task.id, task]));
-    const reordered = orderedIds.map((id, index) => ({ ...tasksById.get(id)!, order: index }));
     queryClient.setQueryData(['tasks', projectId], reordered);
-    reorderMutation.mutate(orderedIds, {
+    reorderMutation.mutate(reordered.map((t) => t.id), {
       onError: () => queryClient.setQueryData(['tasks', projectId], previous),
     });
   }
@@ -152,21 +148,21 @@ export function TaskList({ projectId }: TaskListProps) {
                 )),
                 ...(completed.length > 0
                   ? [
-                      <li key="completed-toggle-row" className="task-list__completed-toggle-row">
-                        <button
-                          type="button"
-                          className="task-list__completed-toggle"
-                          onClick={() => setShowCompleted((prev) => !prev)}
-                          aria-expanded={showCompleted}
-                        >
-                          <span
-                            className={`task-list__completed-chevron${showCompleted ? ' task-list__completed-chevron--open' : ''}`}
-                            aria-hidden="true"
-                          />
-                          {completed.length} completed
-                        </button>
-                      </li>,
-                    ]
+                    <li key="completed-toggle-row" className="task-list__completed-toggle-row">
+                      <button
+                        type="button"
+                        className="task-list__completed-toggle"
+                        onClick={() => setShowCompleted((prev) => !prev)}
+                        aria-expanded={showCompleted}
+                      >
+                        <span
+                          className={`task-list__completed-chevron${showCompleted ? ' task-list__completed-chevron--open' : ''}`}
+                          aria-hidden="true"
+                        />
+                        {completed.length} completed
+                      </button>
+                    </li>,
+                  ]
                   : []),
                 ...completed.map((task) => (
                   <TaskItem

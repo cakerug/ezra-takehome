@@ -7,7 +7,7 @@ import { ApiError, toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import { TaskList } from './TaskList';
 import { ToastHost } from './ToastHost';
-import { computeReorderedIds } from './taskOrdering';
+import { computeReorderedTasks } from './taskOrdering';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
@@ -614,16 +614,16 @@ describe('TaskList', () => {
     // Full pointer-drag simulation with dnd-kit's sensors is unreliable under jsdom (no real
     // layout/geometry, so collision detection never fires) -- per the plan's suggested fallback,
     // we drive the same code path `DndContext`'s `onDragEnd` would: compute the reordered id list
-    // with the component's own (exported, dnd-kit-independent) `computeReorderedIds` helper, then
+    // with the component's own (exported, dnd-kit-independent) `computeReorderedTasks` helper, then
     // invoke the mocked `reorderTasks` directly with that computed order, exactly as
-    // `handleDragEnd` -> `reorderMutation.mutate(orderedIds)` would. Since `reorderTasks` is
+    // `handleDragEnd` -> `reorderMutation.mutate(reordered.map(t => t.id))` would. Since `reorderTasks` is
     // rejected, this only proves the *computation* is correct, not the full failure-toast wiring
     // through the component; that final leg (rejection -> onError -> setErrorMessage -> Toast) is
     // exercised end-to-end below via the equivalent move-task failure path, which shares the same
     // `toToastMessage` + `Toast` plumbing inside `TaskList`.
-    const orderedIds = computeReorderedIds([first, second], 1, 2);
-    expect(orderedIds).toEqual([2, 1]);
-    await expect(reorderTasks({ projectId: 1, orderedTaskIds: orderedIds! })).rejects.toThrow();
+    const reordered = computeReorderedTasks([first, second], 1, 2);
+    expect(reordered!.map((t) => t.id)).toEqual([2, 1]);
+    await expect(reorderTasks({ projectId: 1, orderedTaskIds: reordered!.map((t) => t.id) })).rejects.toThrow();
 
     // Order in the DOM is unchanged because no successful reorder ever invalidated the query.
     const items = screen.getAllByRole('listitem');
@@ -723,7 +723,7 @@ describe('toToastMessage', () => {
   });
 });
 
-describe('computeReorderedIds', () => {
+describe('computeReorderedTasks', () => {
   it('moves the active task to the position of the over task, keeping completed tasks appended at the end', () => {
     const tasks: TaskResponse[] = [
       makeTask({ id: 1, title: 'A', order: 0, isComplete: false }),
@@ -733,13 +733,15 @@ describe('computeReorderedIds', () => {
     ];
 
     // Drag task 1 ("A") to task 3's ("C") position.
-    const result = computeReorderedIds(tasks, 1, 3);
-    expect(result).toEqual([2, 3, 1, 4]);
+    const result = computeReorderedTasks(tasks, 1, 3);
+    expect(result!.map((t) => t.id)).toEqual([2, 3, 1, 4]);
+    // order fields are reassigned by position
+    expect(result!.map((t) => t.order)).toEqual([0, 1, 2, 3]);
   });
 
   it('returns null when active and over are the same (no-op drop)', () => {
     const tasks: TaskResponse[] = [makeTask({ id: 1 }), makeTask({ id: 2, order: 1 })];
-    expect(computeReorderedIds(tasks, 1, 1)).toBeNull();
+    expect(computeReorderedTasks(tasks, 1, 1)).toBeNull();
   });
 
   it('returns null when the drag involves a completed task', () => {
@@ -747,6 +749,6 @@ describe('computeReorderedIds', () => {
       makeTask({ id: 1, isComplete: false }),
       makeTask({ id: 2, order: 1, isComplete: true }),
     ];
-    expect(computeReorderedIds(tasks, 1, 2)).toBeNull();
+    expect(computeReorderedTasks(tasks, 1, 2)).toBeNull();
   });
 });
