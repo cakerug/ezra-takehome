@@ -236,11 +236,19 @@ button:disabled {
   top: 8px;
   color: var(--text-muted);
   line-height: 1.2;
-  pointer-events: none;
+  /* Reset button chrome */
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: grab;
   /* Hidden until the row is hovered or focused, to keep the list uncluttered (mirrors the task
      row's handle). */
   opacity: 0;
   transition: opacity 0.12s ease;
+}
+
+.project-sidebar__drag-handle:active {
+  cursor: grabbing;
 }
 
 .project-sidebar__row:hover .project-sidebar__drag-handle,
@@ -257,8 +265,8 @@ button:disabled {
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-  /* The whole row is both a click-to-select target and a drag surface (see ProjectSidebar.tsx);
-     the grab cursor signals it's draggable. */
+  /* The whole row is the pointer drag surface (listeners on the parent <li>); the grab cursor
+     signals it's draggable from anywhere. */
   cursor: grab;
   overflow: hidden;
   text-overflow: ellipsis;

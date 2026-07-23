@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useState } from 'react';
+import type { KeyboardEventHandler, SubmitEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -72,16 +72,31 @@ export function ProjectRowOverlay({
   );
 }
 
-/** A single draggable sidebar row. The whole row is both the click target (selects the project)
- * and the pointer drag surface; a small movement threshold on the `PointerSensor` (see
- * `ProjectSidebar`) lets a plain click still select while a deliberate drag reorders. Keyboard
- * dragging is activated from the same button via `useSortable`'s attributes/listeners. Mirrors
- * `TaskItem`'s sortable pattern, minus the separate drag handle (the row has no nested inputs to
- * protect from a row-wide keyboard listener). */
+/**
+ * A single draggable sidebar row. Mirrors `TaskItem`'s drag pattern: the whole row is the
+ * *pointer* drag surface (a small movement threshold in the parent's `PointerSensor` lets a
+ * plain click on the select button still register normally), while *keyboard* dragging is
+ * scoped to the small handle button via `setActivatorNodeRef` -- this prevents Space/Enter on
+ * the select button from starting a keyboard drag instead of selecting.
+ */
 function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: project.id,
   });
+
+  // Pointer dragging is wired to the whole row (`rowPointerListeners` on the `<li>`) so the row
+  // is grabbable from anywhere. Keyboard dragging stays scoped to the small handle button via
+  // `setActivatorNodeRef` + its own `onKeyDown`, matching `TaskItem`'s pattern -- this prevents
+  // Space/Enter on the select button from starting a drag instead of selecting.
+  const { onKeyDown: activatorOnKeyDown, ...rowPointerListeners } = listeners ?? {};
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -99,20 +114,32 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
     .join(' ');
 
   return (
-    <li ref={setNodeRef} style={style} className="project-sidebar__row">
-      {/* Purely a visual affordance shown on row hover -- the whole row is already the drag surface
-          (pointer + keyboard, via the button below), so this is hidden from assistive tech and sits
-          in the sidebar padding, outside the row's hover/selected background. */}
-      <span className="project-sidebar__drag-handle" aria-hidden="true">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="project-sidebar__row"
+      {...rowPointerListeners}
+    >
+      {/* Keyboard-drag handle: only this button activates keyboard-based dragging (Space/Enter
+          to pick up, arrows to move, Space/Enter to drop). Pointer dragging works from anywhere
+          on the row via the `<li>`'s pointer listeners. */}
+      <button
+        type="button"
+        className="project-sidebar__drag-handle"
+        aria-label={`Reorder ${project.name}`}
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...(activatorOnKeyDown
+          ? { onKeyDown: activatorOnKeyDown as KeyboardEventHandler<HTMLButtonElement> }
+          : {})}
+      >
         ⠿
-      </span>
+      </button>
       <button
         type="button"
         className={className}
         onClick={onSelect}
         aria-current={isSelected ? 'true' : undefined}
-        {...attributes}
-        {...listeners}
       >
         {project.name}
       </button>
@@ -138,42 +165,21 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
-  // A project row is both the pointer drag surface and a click-to-select button, so on release the
-  // browser fires a native `click` on the just-dragged row -- which would otherwise select it even
-  // though the user only meant to reorder. dnd-kit's `onDragStart` fires only once a real drag
-  // begins (the 8px `PointerSensor` threshold, never a plain click), so we raise a flag there and
-  // have the select handler ignore the trailing click. The flag is cleared on the next tick (after
-  // that click has been dispatched) in both drag-end and drag-cancel, so it can never wedge and
-  // swallow a later genuine click if a drag happens to produce no trailing click.
-  const justDraggedRef = useRef(false);
-
   function handleDragStart(event: DragStartEvent) {
-    justDraggedRef.current = true;
     setActiveId(Number(event.active.id));
-  }
-
-  function clearJustDraggedSoon() {
-    setTimeout(() => {
-      justDraggedRef.current = false;
-    }, 0);
   }
 
   function handleDragCancel() {
     setActiveId(null);
-    clearJustDraggedSoon();
   }
 
   function handleSelectProject(projectId: SelectedProjectId) {
-    if (justDraggedRef.current) {
-      return;
-    }
     onSelectProject(projectId);
   }
 
   const sensors = useSensors(
-    // The whole row is the drag surface and is also a click-to-select button, so a small movement
-    // threshold lets a plain click still select -- only a deliberate drag (pointer moves ≥8px
-    // before release) is treated as a reorder. Matches `TaskList`'s sensor config.
+    // The 8px threshold prevents a stationary pointer click from being treated as a drag, letting
+    // the select button's onClick fire normally on a plain click.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
@@ -191,8 +197,6 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   });
 
   function handleDragEnd(event: DragEndEvent) {
-    // Let the just-dragged row's trailing `click` be ignored, then clear the flag next tick.
-    clearJustDraggedSoon();
     setActiveId(null);
 
     const { active, over } = event;
@@ -310,7 +314,7 @@ export function EditProjectForm({ project, onDone }: EditProjectFormProps) {
     },
   });
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     mutation.mutate();
   }
