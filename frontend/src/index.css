@@ -228,6 +228,14 @@ button:disabled {
    the left of the row's background. */
 .project-sidebar__row {
   position: relative;
+  /* Pointer dragging works from anywhere on the row (see ProjectSidebar.tsx), so the grab cursor
+     lives on the row itself, same as `.task-item--draggable` -- the select button below sets its
+     own `pointer` cursor and wins via specificity, so this doesn't leak onto it. */
+  cursor: grab;
+}
+
+.project-sidebar__row:active {
+  cursor: grabbing;
 }
 
 .project-sidebar__drag-handle {
@@ -265,16 +273,13 @@ button:disabled {
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-  /* The whole row is the pointer drag surface (listeners on the parent <li>); the grab cursor
-     signals it's draggable from anywhere. */
-  cursor: grab;
+  /* This button is the click target for selecting the project, not the drag surface (that's
+     `.project-sidebar__row`, the parent <li>) -- pointer signals it's clickable, matching
+     `.task-item__body`. */
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.project-sidebar__item:active {
-  cursor: grabbing;
 }
 
 /* While dragging, the floating .project-sidebar__item--overlay clone (rendered by the DragOverlay)
