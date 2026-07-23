@@ -99,7 +99,7 @@ export function TaskList({ projectId }: TaskListProps) {
 
     // Optimistically apply the new order to the cache now, synchronously, so it batches with the
     // `setActiveId(null)` above -- the row stays where it was dropped instead of flashing back to
-    // its old slot until the server responds. `sortTasks` orders by each task's `order` field
+    // its old slot until the server responds. `sortIncompleteTasks`/`sortCompletedTasks` order by each task's `order` field
     // (not array position), so we reassign `order` by new index rather than just reordering the
     // array. `onSuccess` overwrites this with the server's authoritative values; the per-drop
     // `onError` rolls the cache back to `previous`.

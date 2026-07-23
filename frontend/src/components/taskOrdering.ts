@@ -23,7 +23,7 @@ export function sortCompletedTasks(tasks: TaskResponse[]): TaskResponse[] {
 }
 
 /**
- * Pure computation of the full ordered-id list to send to `reorderTasks`, given a drag-end's
+ * Pure computation of the full ordered-id list to send to the `reorderTasks` endpoint, given a drag-end's
  * active/over ids. Only incomplete tasks are draggable, so completed ids are always appended
  * unchanged at the end. Returns `null` when the drag shouldn't produce a reorder (no-op drop, or
  * a drag involving a completed task). Extracted as a standalone, dnd-kit-independent function so
