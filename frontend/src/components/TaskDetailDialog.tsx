@@ -58,7 +58,10 @@ export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDia
   const updateMutation = useMutation({
     mutationFn: (next: { title: string; description: string }) =>
       patchTask(task.id, { title: next.title, description: next.description }),
-    onSuccess: invalidateTasks,
+    onSuccess: () => {
+      invalidateTasks();
+      onClose();
+    },
     onError: (error: unknown) => {
       if (!extractFieldErrors(error)) {
         showErrorToast(toToastMessage(error));
