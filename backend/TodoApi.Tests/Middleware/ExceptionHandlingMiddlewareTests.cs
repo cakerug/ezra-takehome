@@ -40,6 +40,7 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
                     endpoints.MapGet("/test/invalid", TestEndpoints.Invalid);
                     endpoints.MapGet("/test/forbidden", TestEndpoints.Forbidden);
                     endpoints.MapGet("/test/conflict", TestEndpoints.Conflict);
+                    endpoints.MapGet("/test/bad-request", TestEndpoints.BadRequest);
                     endpoints.MapGet("/test/boom", TestEndpoints.Boom);
                 });
             });
@@ -147,6 +148,29 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
         Assert.Equal(403, root.GetProperty("status").GetInt32());
     }
 
+    [Fact]
+    public async Task BadHttpRequestException_HonorsCarriedStatusAndDoesNotLeakInternalDetails()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/test/bad-request");
+
+        // The middleware must surface the status the exception already carries (here 400) rather
+        // than relabeling it a 500 via the catch-all.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        // The framework message can name internal parameter/type detail, so it must not reach the
+        // client -- only the generic Bad Request copy.
+        Assert.DoesNotContain("could not bind parameter projectId", body);
+
+        using var json = JsonDocument.Parse(body);
+        var root = json.RootElement;
+        Assert.Equal(400, root.GetProperty("status").GetInt32());
+    }
+
     private static class TestEndpoints
     {
         public static IResult NotFound()
@@ -167,6 +191,15 @@ public class ExceptionHandlingMiddlewareTests : IClassFixture<WebApplicationFact
         public static IResult Conflict()
         {
             throw new DbUpdateException("simulated concurrent update conflict");
+        }
+
+        public static IResult BadRequest()
+        {
+            // Mirrors what ASP.NET's model binding throws for a missing required query value or an
+            // unparseable body: a BadHttpRequestException carrying a 400. The message stands in for
+            // the framework's internal binding detail that must not leak.
+            throw new BadHttpRequestException(
+                "could not bind parameter projectId", StatusCodes.Status400BadRequest);
         }
 
         public static IResult Boom()

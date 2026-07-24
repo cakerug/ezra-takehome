@@ -11,6 +11,9 @@ namespace TodoApi.Middleware;
 /// <see cref="ValidationProblemDetails"/>) response:
 ///   - <see cref="NotFoundException"/> -> 404
 ///   - <see cref="ValidationException"/> -> 400, with per-field errors
+///   - <see cref="BadHttpRequestException"/> -> honors the status ASP.NET's model binding already
+///     assigned (typically 400): unparseable JSON or a missing required query/route value, which
+///     would otherwise fall through to the catch-all and be mislabeled a 500
 ///   - <see cref="ForbiddenOperationException"/> -> 403
 ///   - <see cref="DbUpdateException"/> -> 409; a concurrent request changed or removed a row this
 ///     request depended on (e.g. a task's target project was deleted mid-move). Covers the move,
@@ -70,6 +73,21 @@ public class ExceptionHandlingMiddleware
                 StatusCodes.Status409Conflict,
                 "Conflict",
                 "The resource was modified or removed by another request. Please retry.");
+        }
+        catch (BadHttpRequestException ex)
+        {
+            // Malformed body (unparseable JSON) or a missing required query/route value: ASP.NET's
+            // model binding has already classified this as the client's fault and carries the
+            // intended status (typically 400) on the exception. Honor that status instead of
+            // letting it fall through to the catch-all below, which would relabel a client error as
+            // a 500. Detail is kept generic on purpose -- the framework message can name internal
+            // parameter/type details, so it's logged, not returned.
+            _logger.LogWarning("Bad request while processing {Path}: {Message}", context.Request.Path, ex.Message);
+            await WriteProblemDetailsAsync(
+                context,
+                ex.StatusCode,
+                "Bad Request",
+                "The request was malformed or missing required data.");
         }
         catch (Exception ex)
         {
