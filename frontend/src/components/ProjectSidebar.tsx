@@ -141,11 +141,16 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
  * dropped rather than flashing back to its old slot mid-request), then sends the full reordered id
  * list to `reorderProjects`. The server's response reconciles the cache on success; on failure the
  * cache is rolled back to its pre-drag order and the error is surfaced by the app-level toast.
+ *
+ * Subscribes to ['projects'] directly rather than taking it as a prop from `App`: fed by props, the
+ * reordered list lands a commit too late and the dropped row animates back to its old slot.
  */
 export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
   const queryClient = useQueryClient();
 
-  const { data: projects, isLoading } = useQuery({
+  // No loading branch: `App` holds the shell back until this query resolves, so the sidebar only
+  // mounts once the data is there.
+  const { data: projects } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
@@ -218,8 +223,6 @@ export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSi
   return (
     <nav aria-label="Projects" className="project-sidebar">
       <h2 className="project-sidebar__heading">Projects</h2>
-
-      {isLoading && <p className="project-sidebar__status">Loading projects…</p>}
 
       {projects && (
         <DndContext

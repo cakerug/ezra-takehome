@@ -16,7 +16,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { listProjects, listTasks, reorderTasks } from '../api/client';
+import { listTasks, reorderTasks } from '../api/client';
+import type { ProjectResponse } from '../api/generated-schemas';
 import { toToastMessage } from '../api/errors';
 import { showErrorToast } from '../toastBus';
 import { NewTaskForm } from './NewTaskForm';
@@ -25,6 +26,7 @@ import { sortIncompleteTasks, sortCompletedTasks } from './taskOrdering';
 
 interface TaskListProps {
   projectId: number;
+  projects: ProjectResponse[];
 }
 
 /**
@@ -38,7 +40,7 @@ interface TaskListProps {
  * reconciles the cache on success; on failure we roll the cache back to its pre-drag order and
  * surface the error via the app-level toast (see `showErrorToast`).
  */
-export function TaskList({ projectId }: TaskListProps) {
+export function TaskList({ projectId, projects }: TaskListProps) {
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -52,12 +54,10 @@ export function TaskList({ projectId }: TaskListProps) {
     queryFn: () => listTasks(projectId),
   });
 
-  const { data: projects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: listProjects,
-  });
-
-  const otherProjects = (projects ?? []).filter((project) => project.id !== projectId);
+  // `projects` is passed down from `App` rather than queried here. A second subscriber to
+  // ['projects'] refetches the list on mount -- the client sets no staleTime, so cached data is
+  // stale immediately -- which meant two identical /api/projects requests per page load.
+  const otherProjects = projects.filter((project) => project.id !== projectId);
 
   const sensors = useSensors(
     // The whole row is now the drag surface (not just a dedicated handle), and it contains other

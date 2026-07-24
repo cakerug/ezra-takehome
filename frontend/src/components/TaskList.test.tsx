@@ -73,7 +73,7 @@ function renderTaskList(projectId = 1) {
   // the app-level toast bus rather than a local Toast, are rendered and assertable here.
   return render(
     <QueryClientProvider client={queryClient}>
-      <TaskList projectId={projectId} />
+      <TaskList projectId={projectId} projects={[inbox, work]} />
       <ToastHost />
     </QueryClientProvider>,
   );
@@ -691,7 +691,7 @@ describe('TaskList', () => {
     });
     render(
       <QueryClientProvider client={queryClient}>
-        <TaskList projectId={1} />
+        <TaskList projectId={1} projects={[inbox, work]} />
         <ToastHost />
       </QueryClientProvider>,
     );

@@ -24,11 +24,9 @@ function SidebarIcon() {
 
 function ContentArea({
   projects,
-  isLoading,
   selectedProjectId,
 }: {
-  projects: ProjectResponse[] | undefined;
-  isLoading: boolean;
+  projects: ProjectResponse[];
   selectedProjectId: SelectedProjectId;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -37,16 +35,11 @@ function ContentArea({
   const selectedProject =
     selectedProjectId === null
       ? undefined
-      : projects?.find((project) => project.id === selectedProjectId);
+      : projects.find((project) => project.id === selectedProjectId);
 
   if (!selectedProject) {
-    // Either the initial load (before the projects query resolves and App can pick a default),
-    // or the query resolved with no projects left (e.g. the last one was just deleted).
-    return (
-      <p className="content__empty">
-        {isLoading ? 'Loading…' : 'Create a project to get started'}
-      </p>
-    );
+    // No projects left -- e.g. the last one was just deleted.
+    return <p className="content__empty">Create a project to get started</p>;
   }
 
   return (
@@ -63,7 +56,7 @@ function ContentArea({
           ]}
         />
       </div>
-      <TaskList projectId={selectedProject.id} />
+      <TaskList projectId={selectedProject.id} projects={projects} />
 
       {isEditOpen && (
         <Dialog
@@ -87,6 +80,9 @@ function ContentArea({
 /**
  * Top-level app shell: a project sidebar beside a content area. Owns "currently selected project"
  * state and hands it to both the sidebar (which sets it) and the content area (which reads it).
+ * Also owns the projects load, and holds the shell back until it resolves so everything below can
+ * treat `projects` as present -- it's the only subscriber to the ['projects'] query, and passes the
+ * list down to both children.
  */
 function App() {
   // As the app evolves in complexity, I would change this to a useContext (i.e., for prop-drilling
@@ -95,17 +91,27 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState<SelectedProjectId>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Shares the ['projects'] cache with ProjectSidebar, so this adds no extra request. Also passed
-  // down to ContentArea so it doesn't need its own subscription.
   const { data: projects, isLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
 
-  // Fall back to the first project whenever there's no selection yet or the selected project was
-  // just deleted, so the view is never blank. Never overrides a still-valid user selection.
-  const selectedProject = projects?.find((project) => project.id === selectedProjectId);
-  const effectiveProjectId = selectedProject?.id ?? projects?.[0]?.id ?? null;
+  // Pin the selection to a concrete project id as soon as the list arrives, and re-pin it if that
+  // project disappears (only deletion does that -- reordering keeps every id).
+  // With no projects there is nothing to select, so the selection is left alone and `ContentArea`
+  // renders its "create a project" empty state instead.
+  const hasProjects = projects !== undefined && projects.length > 0;
+  if (hasProjects && !projects.some((project) => project.id === selectedProjectId)) {
+    setSelectedProjectId(projects[0].id);
+  }
+
+  if (isLoading) {
+    return <p className="content__empty">Loading…</p>;
+  }
+
+  if (!projects) {
+    return <p className="content__empty">Could not load your projects.</p>;
+  }
 
   return (
     <div className="layout">
@@ -132,18 +138,14 @@ function App() {
               «
             </button>
             <ProjectSidebar
-              selectedProjectId={effectiveProjectId}
+              selectedProjectId={selectedProjectId}
               onSelectProject={setSelectedProjectId}
             />
           </>
         )}
       </aside>
       <main className="layout__content">
-        <ContentArea
-          projects={projects}
-          isLoading={isLoading}
-          selectedProjectId={effectiveProjectId}
-        />
+        <ContentArea projects={projects} selectedProjectId={selectedProjectId} />
       </main>
     </div>
   );
