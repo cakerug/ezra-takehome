@@ -130,8 +130,8 @@ export function reorderTasks(data: ReorderTasksRequest): Promise<TaskResponse[]>
   });
 }
 
-// Backs field edits, complete/uncomplete, and move -- all four collapse into one partial-update
-// request now that task routes are flat; see docs/ezra-evaluation-criteria-tradeoffs.md.
+// Backs field edits, complete/uncomplete, and move -- all of which collapse into one
+// partial-update request now that task routes are flat.
 export function patchTask(id: number, data: PatchTaskRequest): Promise<TaskResponse> {
   return request(`/api/tasks/${id}`, TaskResponseSchema, {
     method: 'PATCH',

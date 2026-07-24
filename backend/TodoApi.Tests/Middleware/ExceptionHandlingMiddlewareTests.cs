@@ -12,7 +12,8 @@ namespace TodoApi.Tests.Middleware;
 
 /// <summary>
 /// Integration tests for the global exception-handling middleware pipeline wired up in
-/// Program.cs. Since U3/U4 endpoints don't exist yet, this factory maps a handful of
+/// Program.cs. Rather than driving the real endpoints (which would couple these tests to the
+/// business rules that happen to throw each exception type today), this factory maps a handful of
 /// throwaway test-only endpoints that each throw a specific exception type, purely to exercise
 /// the middleware end-to-end. These routes are never added to the real Program.cs — they are
 /// mapped here, scoped entirely to the test project, via ConfigureWebHost.

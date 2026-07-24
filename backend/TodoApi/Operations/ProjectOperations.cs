@@ -59,9 +59,9 @@ public static class ProjectOperations
         var project = await db.Projects.FindAsync(id)
             ?? throw new NotFoundException($"Project with id {id} was not found.");
 
-        // Relies on U1's FK cascade configuration (OnDelete(DeleteBehavior.Cascade) + SQLite
-        // "Foreign Keys=True") to remove this project's tasks at the database level, even though
-        // they are not loaded/tracked here.
+        // Relies on the FK cascade configured in AppDbContext (OnDelete(DeleteBehavior.Cascade))
+        // plus SQLite "Foreign Keys=True" in the connection string to remove this project's tasks
+        // at the database level, even though they are not loaded/tracked here.
         db.Projects.Remove(project);
         await db.SaveChangesAsync();
     }

@@ -15,8 +15,8 @@ namespace TodoApi.Tests;
 
 /// <summary>
 /// Integration tests for the Project CRUD endpoints, run against a real temp-file SQLite
-/// database (not the EF Core InMemory provider) so that FK cascade-delete behavior (R10) is
-/// actually exercised at the database level, matching U1's precedent in DataModelTests.
+/// database (not the EF Core InMemory provider) so that FK cascade-delete behavior is actually
+/// exercised at the database level, matching the approach in DataModelTests.
 ///
 /// Each test gets its own WebApplicationFactory pointed at its own temp-file database via
 /// WithWebHostBuilder + ConfigureServices, so tests never share state or interfere with each

@@ -31,8 +31,8 @@ interface TaskListProps {
 
 /**
  * Renders the selected project's tasks -- creation form and drag-to-reorder list. Reordering is
- * scoped to the current project only (drag-and-drop across projects is out of scope; moving
- * projects is done via each `TaskItem`'s dropdown, per F1).
+ * scoped to the current project only: drag-and-drop across projects is out of scope, so moving a
+ * task to another project is done via each `TaskItem`'s dropdown instead.
  *
  * Optimistic reorder: on drop we write the new order into the cache immediately (so the row stays
  * exactly where it was dropped -- no flash back to its old slot while the request is in flight),
@@ -54,9 +54,11 @@ export function TaskList({ projectId, projects }: TaskListProps) {
     queryFn: () => listTasks(projectId),
   });
 
-  // `projects` is passed down from `App` rather than queried here. A second subscriber to
-  // ['projects'] refetches the list on mount -- the client sets no staleTime, so cached data is
-  // stale immediately -- which meant two identical /api/projects requests per page load.
+  // `projects` is passed down from `App` rather than queried here. The client sets no staleTime,
+  // so any subscriber mounting after the cache is populated refetches immediately -- an extra
+  // /api/projects request per mount. That cost is only worth paying where a component needs to
+  // write the cache and read it back itself (`ProjectSidebar`, for its optimistic reorder); this
+  // one only reads the list, so it takes a prop.
   const otherProjects = projects.filter((project) => project.id !== projectId);
 
   const sensors = useSensors(

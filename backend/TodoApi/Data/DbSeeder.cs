@@ -4,8 +4,8 @@ using TodoApi.Models;
 namespace TodoApi.Data;
 
 /// <summary>
-/// Seeds a fresh database with example data (R15): a few ordinary projects, each with a handful
-/// of tasks. Idempotent: if any project already exists, <see cref="SeedAsync"/> is a no-op, so it
+/// Seeds a fresh database with example data: a few ordinary projects, each with a handful of
+/// tasks. Idempotent: if any project already exists, <see cref="SeedAsync"/> is a no-op, so it
 /// is safe to call on every startup against a persisted SQLite file without creating duplicates.
 /// </summary>
 public static class DbSeeder

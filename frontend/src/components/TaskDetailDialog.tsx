@@ -33,10 +33,12 @@ interface TaskDetailDialogProps {
  * user can reopen the task and then edit it -- it is a separate, un-buffered mutation.
  *
  * A top-right "…" `ActionMenu` surfaces the same secondary actions as the row's own overflow menu
- * -- move to another project and delete -- mirroring `TaskItem`'s menu construction exactly (move
- * does the dual-project invalidation; delete is gated by a `ConfirmDialog`) and closing the dialog
- * once they land. Unlike the row's menu, this one isn't gated by `isLocked`: move/delete stay
- * available even on a completed (locked) task, matching the old sidebar's behavior.
+ * -- move to another project and delete -- built the same way (move does the dual-project
+ * invalidation; delete is gated by a `ConfirmDialog`) and closing the dialog once they land. The
+ * one difference from the row's menu is that this one has no "Edit" item -- there is nothing for it
+ * to do here, since this dialog is itself the edit surface (title and description are live fields
+ * committed by Save). Neither menu is gated by `isLocked` -- move and delete stay available on a
+ * completed task, since only its title and description are locked.
  */
 export function TaskDetailDialog({ task, otherProjects, onClose }: TaskDetailDialogProps) {
   const queryClient = useQueryClient();

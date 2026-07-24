@@ -143,7 +143,10 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
  * cache is rolled back to its pre-drag order and the error is surfaced by the app-level toast.
  *
  * Subscribes to ['projects'] directly rather than taking it as a prop from `App`: fed by props, the
- * reordered list lands a commit too late and the dropped row animates back to its old slot.
+ * reordered list lands a commit too late and the dropped row animates back to its old slot. The
+ * cost is one extra /api/projects refetch when this mounts (no staleTime is configured, so the
+ * already-cached list counts as stale) -- accepted here, unlike in `TaskList`, because reading the
+ * cache it just wrote is what makes the optimistic reorder land in the same commit.
  */
 export function ProjectSidebar({ selectedProjectId, onSelectProject }: ProjectSidebarProps) {
   const queryClient = useQueryClient();

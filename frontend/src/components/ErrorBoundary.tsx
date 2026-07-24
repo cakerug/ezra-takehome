@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  /** Clears react-query's error state so a retry actually re-runs the failed queries, not just
-   * re-render the same cached error. Passed down from `QueryErrorResetBoundary` in main.tsx. */
+  /** Runs when the user hits Retry, alongside clearing the fallback. `main.tsx` passes a full page
+   * reload: this boundary only catches render-time bugs, so the in-memory state that produced the
+   * crash is already suspect and re-rendering the same tree would likely just crash again. */
   onReset: () => void;
 }
 
