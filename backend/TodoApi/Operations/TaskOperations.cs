@@ -74,12 +74,21 @@ public static class TaskOperations
             task.Order = nextOrder;
         }
 
-        // This must happen before the title/description update because if you are updating the
-        // task's isComplete status and title/description in the same request, the task must be
-        // updated. In practice, the frontend does not do this right now since it updates
-        // the complete and the title/description separately.
-        // Could potentially change the API to have separate endpoints for completion vs title/description updates,
-        // but a single PATCH felt more understandable as an API.
+        // The edit lock below turns on two states, both captured here before anything is applied.
+        // A task that arrived complete and is still complete on the way out is closed, and a closed
+        // task can't have its title or description edited. Every other combination is fine:
+        // completing and editing together (it was still open when the request arrived), and
+        // reopening and editing together (it's open again by the time the request finishes).
+        //
+        // Reading both up front, rather than reading task.IsComplete at the lock itself, is what
+        // lets the two blocks below run in either order without changing behavior.
+        //
+        // In practice the frontend sends neither combination, since it toggles completion and edits
+        // fields as separate requests. Splitting completion out into its own endpoint would make
+        // all of this moot, but a single PATCH felt more understandable as an API.
+        var wasComplete = task.IsComplete;
+        var willBeComplete = request.IsComplete ?? wasComplete;
+
         if (request.IsComplete is bool isComplete && task.IsComplete != isComplete)
         {
             // Idempotent: a repeat of the same state is a no-op (guarded by the `!=` above), so
@@ -91,11 +100,11 @@ public static class TaskOperations
 
         if (request.Title is not null || request.Description is not null)
         {
-            // A completed task is locked for field edits; the client must reopen it (uncomplete)
-            // first -- unless this same request is the one doing the reopening (handled by the
-            // ordering above). The complete/uncomplete toggle, move, and delete all stay allowed
-            // even while complete -- only Title/Description are blocked here.
-            if (task.IsComplete)
+            // Closed on arrival and still closed on the way out (see the note above
+            // `wasComplete`): the client has to reopen the task first, either in an earlier
+            // request or in this one. The complete/uncomplete toggle, move, and delete all stay
+            // allowed even while complete -- only Title/Description are blocked here.
+            if (wasComplete && willBeComplete)
             {
                 throw new ForbiddenOperationException(
                     "A completed task cannot be edited. Mark it incomplete first.");

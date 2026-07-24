@@ -556,6 +556,55 @@ public class TaskEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task CompletingAndEditingInOneRequest_Succeeds()
+    {
+        var client = _factory.CreateClient();
+
+        var projectId = await CreateProjectAsync(client, "Project");
+        var task = await CreateTaskAsync(client, projectId, "Original");
+
+        // The task was still open when this request arrived, so the edit is legitimate -- the edit
+        // lock only protects tasks that were already complete. Guards against the lock being
+        // rewritten to test the task's post-request state, which would reject this.
+        var response = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest
+        {
+            IsComplete = true,
+            Title = "Edited while completing",
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var updated = await response.Content.ReadFromJsonAsync<TaskResponse>();
+        Assert.True(updated!.IsComplete);
+        Assert.Equal("Edited while completing", updated.Title);
+    }
+
+    [Fact]
+    public async Task ReopeningAndEditingInOneRequest_Succeeds()
+    {
+        var client = _factory.CreateClient();
+
+        var projectId = await CreateProjectAsync(client, "Project");
+        var task = await CreateTaskAsync(client, projectId, "Original");
+
+        var completeResponse = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest { IsComplete = true });
+        Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+        // The mirror image of the case above: because IsComplete is applied before the edit lock
+        // is checked, a request that reopens the task may also edit it. Guards the ordering of
+        // those two blocks in TaskOperations.PatchAsync.
+        var response = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}", new PatchTaskRequest
+        {
+            IsComplete = false,
+            Title = "Edited while reopening",
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var updated = await response.Content.ReadFromJsonAsync<TaskResponse>();
+        Assert.False(updated!.IsComplete);
+        Assert.Equal("Edited while reopening", updated.Title);
+    }
+
+    [Fact]
     public async Task UpdatingIncompleteTask_Succeeds()
     {
         var client = _factory.CreateClient();
