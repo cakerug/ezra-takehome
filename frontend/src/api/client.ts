@@ -124,7 +124,7 @@ export function createTask(data: CreateTaskRequest): Promise<TaskResponse> {
 }
 
 export function reorderTasks(data: ReorderTasksRequest): Promise<TaskResponse[]> {
-  return request('/api/tasks/order', TaskListResponseSchema, {
+  return request('/api/tasks/reorder', TaskListResponseSchema, {
     method: 'PUT',
     ...toJsonBody(data),
   });

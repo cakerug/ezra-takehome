@@ -192,7 +192,7 @@ public class TaskEndpointsTests : IDisposable
         // New sequence: C, A, B
         var newOrder = new List<int> { taskC.Id, taskA.Id, taskB.Id };
 
-        var reorderResponse = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
+        var reorderResponse = await client.PutAsJsonAsync("/api/tasks/reorder", new ReorderTasksRequest
         {
             ProjectId = projectId,
             OrderedTaskIds = newOrder,
@@ -224,7 +224,7 @@ public class TaskEndpointsTests : IDisposable
         var taskA = await CreateTaskAsync(client, projectId, "A");
         var taskB = await CreateTaskAsync(client, projectId, "B");
 
-        var response = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
+        var response = await client.PutAsJsonAsync("/api/tasks/reorder", new ReorderTasksRequest
         {
             ProjectId = projectId,
             OrderedTaskIds = new List<int> { taskA.Id }, // omits taskB
@@ -247,7 +247,7 @@ public class TaskEndpointsTests : IDisposable
         var taskA = await CreateTaskAsync(client, projectId, "A");
         var taskB = await CreateTaskAsync(client, projectId, "B");
 
-        var response = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
+        var response = await client.PutAsJsonAsync("/api/tasks/reorder", new ReorderTasksRequest
         {
             ProjectId = projectId,
             OrderedTaskIds = new List<int> { taskA.Id, taskA.Id }, // duplicate, omits taskB
@@ -268,7 +268,7 @@ public class TaskEndpointsTests : IDisposable
         var taskB = await CreateTaskAsync(client, projectId, "B");
         var otherTask = await CreateTaskAsync(client, otherProjectId, "Other");
 
-        var response = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
+        var response = await client.PutAsJsonAsync("/api/tasks/reorder", new ReorderTasksRequest
         {
             ProjectId = projectId,
             OrderedTaskIds = new List<int> { taskA.Id, otherTask.Id }, // otherTask doesn't belong; also omits taskB
@@ -307,7 +307,7 @@ public class TaskEndpointsTests : IDisposable
 
         // Now reorder Project B's tasks (b0, b1, a1) into (a1, b1, b0).
         var newOrder = new List<int> { a1.Id, b1.Id, b0.Id };
-        var reorderResponse = await client.PutAsJsonAsync("/api/tasks/order", new ReorderTasksRequest
+        var reorderResponse = await client.PutAsJsonAsync("/api/tasks/reorder", new ReorderTasksRequest
         {
             ProjectId = projectBId,
             OrderedTaskIds = newOrder,

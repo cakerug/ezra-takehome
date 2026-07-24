@@ -39,7 +39,7 @@ public static class TaskEndpoints
             return Results.NoContent();
         }).Produces(StatusCodes.Status204NoContent);
 
-        tasks.MapPut("/order", async (AppDbContext db, ReorderTasksRequest request) =>
+        tasks.MapPut("/reorder", async (AppDbContext db, ReorderTasksRequest request) =>
         {
             var reordered = await TaskOperations.ReorderAsync(db, request);
             return Results.Ok(reordered);

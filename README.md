@@ -99,7 +99,7 @@ Other useful scripts: `npm run build` (type-check + production build), `npm run 
 I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed the code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I had agents with different focuses (e.g., security, user experience) evaluate the plans from different perspectives.
 
 Some core changes I made to what the LLM built:
-- changed the API - it had more "RPC"-style but I prefer more resource-based APIs. Easier to understand b/c it's more standardized (RESTful). The original had tasks nested under projects but even though that's the current data architecture, I could easily see tasks living inside other containers like filtered lists or search results.
+- changed the API - it had more "RPC"-style but I prefer resource-based APIs as much as is reasonable. Easier to understand b/c it's more standardized (RESTful). The original had tasks nested under projects but even though that's the current data architecture, I could easily see tasks living inside other containers like filtered lists or search results.
 - I changed how it handled backend-frontend communicate to have the shapes generated for the frontend, making the backend the source of truth here. The LLM had already enabled Swagger (it is only a few lines), so this wasn't that much more work.
 - They used render-props for project selection when simple lifted state management was sufficient
 - It originally used MVC controllers with services but I simplified it to use the Minimal API because it removed a lot of unnecessary layers of indirection.
@@ -146,10 +146,12 @@ The decisions I made were based on: (1) not trying to over-engineer something --
 There are many directions to take a todo app after the above (e.g., an inbox, scheduling, due dates, recurring tasks, etc) but, in my opinion, the above are the next layer of features that any todo app should have.
 
 ### User experience polish
+- Responsive layout
 - Drag and drop between projects
 - Better menu for moving projects (scroll)
 - Better task detail view (make ... menu items easier to edit there)
 - Toasts replace each other instead of stacking
+- Turn the seed data into tutorial tasks.
 
 ### At Scale
 - Move off of SQLite, something relational would work well - e.g., postgres
