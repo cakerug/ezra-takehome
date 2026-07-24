@@ -65,9 +65,15 @@ public class PatchTaskRequest
 /// </summary>
 public class ReorderTasksRequest
 {
-    public required int ProjectId { get; set; }
+    // Nullable + [Required] rather than the `required` keyword, for the same reason as
+    // CreateTaskRequest's fields: a client can omit either property on the wire. [Required] rejects
+    // an absent value in the validation filter as a clean field-level 400; the `required` keyword
+    // would instead make System.Text.Json throw during binding, turning that into a 500.
+    [Required]
+    public int? ProjectId { get; set; }
 
-    public required List<int> OrderedTaskIds { get; set; } = new();
+    [Required]
+    public List<int>? OrderedTaskIds { get; set; }
 }
 
 /// <summary>

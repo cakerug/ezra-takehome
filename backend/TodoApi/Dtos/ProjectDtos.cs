@@ -36,7 +36,10 @@ public class UpdateProjectRequest
 /// </summary>
 public class ReorderProjectsRequest
 {
-    public required List<int> OrderedProjectIds { get; set; } = new();
+    // Nullable + [Required] rather than the `required` keyword (see ReorderTasksRequest): an absent
+    // list becomes a clean 400 in the validation filter instead of a 500 from a binding-time throw.
+    [Required]
+    public List<int>? OrderedProjectIds { get; set; }
 }
 
 /// <summary>

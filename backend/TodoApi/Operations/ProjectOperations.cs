@@ -68,7 +68,9 @@ public static class ProjectOperations
 
     public static async Task<List<ProjectResponse>> ReorderAsync(AppDbContext db, ReorderProjectsRequest request)
     {
-        var orderedIds = request.OrderedProjectIds ?? new List<int>();
+        // Non-null: the [Required] validation filter rejects an absent OrderedProjectIds with a 400
+        // before this handler runs.
+        var orderedIds = request.OrderedProjectIds!;
 
         if (orderedIds.Count != orderedIds.Distinct().Count())
         {

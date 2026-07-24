@@ -137,10 +137,12 @@ public static class TaskOperations
     // Other alternative is to use lexicographical ranks. Also additional complexity for now.
     public static async Task<List<TaskResponse>> ReorderAsync(AppDbContext db, ReorderTasksRequest request)
     {
-        var projectId = request.ProjectId;
+        // Non-null: the [Required] validation filter rejects an absent ProjectId/OrderedTaskIds
+        // with a 400 before this handler runs (mirrors CreateAsync's `request.ProjectId!.Value`).
+        var projectId = request.ProjectId!.Value;
         await EnsureProjectExistsAsync(db, projectId);
 
-        var orderedIds = request.OrderedTaskIds ?? new List<int>();
+        var orderedIds = request.OrderedTaskIds!;
 
         if (orderedIds.Count != orderedIds.Distinct().Count())
         {
