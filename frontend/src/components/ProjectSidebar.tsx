@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { KeyboardEventHandler, SubmitEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -92,12 +92,6 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
     id: project.id,
   });
 
-  // Pointer dragging is wired to the whole row (`rowPointerListeners` on the `<li>`) so the row
-  // is grabbable from anywhere. Keyboard dragging stays scoped to the small handle button via
-  // `setActivatorNodeRef` + its own `onKeyDown`, matching `TaskItem`'s pattern -- this prevents
-  // Space/Enter on the select button from starting a drag instead of selecting.
-  const { onKeyDown: activatorOnKeyDown, ...rowPointerListeners } = listeners ?? {};
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -118,20 +112,14 @@ function ProjectRow({ project, isSelected, onSelect }: ProjectRowProps) {
       ref={setNodeRef}
       style={style}
       className="project-sidebar__row"
-      {...rowPointerListeners}
+      {...listeners}
     >
-      {/* Keyboard-drag handle: only this button activates keyboard-based dragging (Space/Enter
-          to pick up, arrows to move, Space/Enter to drop). Pointer dragging works from anywhere
-          on the row via the `<li>`'s pointer listeners. */}
       <button
         type="button"
         className="project-sidebar__drag-handle"
         aria-label={`Reorder ${project.name}`}
         ref={setActivatorNodeRef}
         {...attributes}
-        {...(activatorOnKeyDown
-          ? { onKeyDown: activatorOnKeyDown as KeyboardEventHandler<HTMLButtonElement> }
-          : {})}
       >
         ⠿
       </button>

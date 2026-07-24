@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { KeyboardEventHandler } from 'react';
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -74,16 +74,6 @@ export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemP
     id: task.id,
     disabled: !isDraggable,
   });
-  // Pointer dragging is wired to the whole row (`listeners.onPointerDown` below) so the row is
-  // grabbable from anywhere, not just the handle icon. Keyboard dragging stays scoped to the small
-  // handle button via `setActivatorNodeRef` + its own `onKeyDown` -- dnd-kit's keyboard activator
-  // only guards against firing when its "activator node" doesn't match the actual keydown target,
-  // and that guard is skipped (activating unconditionally) when no activator node is set. Since
-  // the row also contains a nested text input (the task-detail dialog's title/description
-  // fields), a row-wide keyboard listener risks swallowing keystrokes like Space there; scoping it
-  // to the handle avoids that class of bug entirely, and matches dnd-kit's own recommended
-  // "separate drag handle" pattern.
-  const { onKeyDown: activatorOnKeyDown, ...rowPointerListeners } = listeners ?? {};
 
   // While dragging, the in-place row becomes a placeholder for the slot being vacated -- the
   // floating `TaskItemOverlay` (rendered by `TaskList`'s `DragOverlay`) is what follows the
@@ -149,13 +139,13 @@ export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemP
   const menuItems: ActionMenuEntry[] = [
     ...(otherProjects.length > 0
       ? [
-          { heading: 'Move to' } as const,
-          ...otherProjects.map((project) => ({
-            label: project.name,
-            onSelect: () => moveMutation.mutate(project.id),
-          })),
-          { separator: true } as const,
-        ]
+        { heading: 'Move to' } as const,
+        ...otherProjects.map((project) => ({
+          label: project.name,
+          onSelect: () => moveMutation.mutate(project.id),
+        })),
+        { separator: true } as const,
+      ]
       : []),
     { label: 'Edit', onSelect: () => setIsDetailOpen(true) },
     { separator: true } as const,
@@ -176,7 +166,7 @@ export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemP
       style={style}
       className={rowClassName}
       hidden={hidden}
-      {...(isDraggable ? rowPointerListeners : {})}
+      {...listeners}
     >
       <button
         type="button"
@@ -187,12 +177,7 @@ export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemP
         // inert there: disabled and hidden from the accessibility tree / tab order.
         disabled={!isDraggable}
         aria-hidden={!isDraggable}
-        // Only this handle activates keyboard-based dragging (see the note above `useSortable`);
-        // pointer-based dragging works from anywhere on the row via the `<li>`'s own listeners.
         {...(isDraggable ? attributes : {})}
-        {...(isDraggable && activatorOnKeyDown
-          ? { onKeyDown: activatorOnKeyDown as KeyboardEventHandler<HTMLButtonElement> }
-          : {})}
       >
         ⠿
       </button>
