@@ -88,6 +88,7 @@ function App() {
   // As the app evolves in complexity, I would change this to a useContext (i.e., for prop-drilling
   // and ease of understanding) and then even zustand or redux (for more selective state updates and
   // thus fewer re-renders)
+  // Using an id instead of an index just for the edge case where another tab rearranges or deletes a project
   const [selectedProjectId, setSelectedProjectId] = useState<SelectedProjectId>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -96,10 +97,16 @@ function App() {
     queryFn: listProjects,
   });
 
-  // Pin the selection to a concrete project id as soon as the list arrives, and re-pin it if that
-  // project disappears (only deletion does that -- reordering keeps every id).
-  // With no projects there is nothing to select, so the selection is left alone and `ContentArea`
-  // renders its "create a project" empty state instead.
+  // Pin the selection to the first project as soon as the list of projects arrives.
+  // Re-pin it if that project disappears (via deletion).
+  // We do this during render so the id lands in the first paint -- in a useEffect, the content
+  // pane commits "Create a project to get started" beside a fully populated sidebar, then
+  // corrects itself.
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  // Note: we don't do the purely derived version:
+  // const selectedProject = projects.find((p) => p.id === selectedProjectId) ?? projects[0];
+  // that they have in that example because there is a subtle bug where if you do not ever select a
+  // projectid, then rearranging would always default to the 0th project.
   const hasProjects = projects !== undefined && projects.length > 0;
   if (hasProjects && !projects.some((project) => project.id === selectedProjectId)) {
     setSelectedProjectId(projects[0].id);
