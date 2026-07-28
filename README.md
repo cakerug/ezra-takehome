@@ -166,6 +166,7 @@ There are many directions to take a todo app after the above (e.g., an inbox, sc
 - Better task detail view (make ... menu items easier to edit there)
 - Toasts replace each other instead of stacking
 - Turn the seed data into tutorial tasks.
+- Improve inline errors for invalid input - Better styling and more real-time notification (as opposed to waiting for save)
 
 ### At Scale
 - Move off of SQLite, something relational would work well - e.g., postgres
