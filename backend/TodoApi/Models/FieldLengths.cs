@@ -19,5 +19,5 @@ public static class FieldLengths
 
     public const int TaskTitle = 200;
 
-    public const int TaskDescription = 2000;
+    public const int TaskDescription = 10000;
 }
