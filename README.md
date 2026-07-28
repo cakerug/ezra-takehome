@@ -177,7 +177,7 @@ There are many directions to take a todo app after the above (e.g., an inbox, sc
 - CI/CD for generated types, running tests
 - I don't log client-side errors to anything. Would add Sentry at scale (also for the backend, but there are at least server-side logs for that right now)
 - Product analytics (e.g., Pendo, Amplitude)
-- Switch ids from ints to uuids to make sharding easier (no id conflicts) 
+- Switch ids from ints to uuids to make sharding easier (no id conflicts) - though that would depend on the sharding strategy. Could be fine to stick with ints if we shard by userid
 - e2e tests
 - local caching (staletime) via tanstack query - trading data flow simplicity for caching/perf benefits
 - zustand / redux for larger more complex product surface area
