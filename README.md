@@ -178,5 +178,4 @@ There are many directions to take a todo app after the above (e.g., an inbox, sc
 - I don't log client-side errors to anything. Would add Sentry at scale (also for the backend, but there are at least server-side logs for that right now)
 - Product analytics (e.g., Pendo, Amplitude)
 - Switch ids from ints to uuids to make sharding easier (no id conflicts) 
-- More standardized validation layer (e.g., FluentValidation, ZodSharp)
 - e2e tests
