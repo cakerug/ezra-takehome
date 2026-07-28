@@ -72,7 +72,11 @@ export function TaskItem({ task, otherProjects, isDraggable, hidden }: TaskItemP
     isDragging,
   } = useSortable({
     id: task.id,
-    disabled: !isDraggable,
+    // Spelled out as an object rather than `disabled: !isDraggable`: for backwards compatibility
+    // dnd-kit reads a *boolean* `disabled` as draggable-only and leaves the row droppable, so a
+    // completed task would still be a valid drop target -- the keyboard sensor would walk a
+    // dragged task down through the completed group even though landing there does nothing.
+    disabled: { draggable: !isDraggable, droppable: !isDraggable },
   });
 
   // While dragging, the in-place row becomes a placeholder for the slot being vacated -- the
