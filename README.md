@@ -36,7 +36,8 @@ The backend features I added:
   uptime checks.
 - Rate limiter
 
-Missing features for a production-ready app:
+
+## Missing features for a production-ready app
 - **authentication**: I felt it was out of scope for this take-home exercise. I would most likely not reinvent the wheel and use something off-the-shelf like Auth0.
 - Error tracking/observability (e.g., Sentry)
 - Product analytics (e.g., Google Analytics, Pendo, Amplitude)
