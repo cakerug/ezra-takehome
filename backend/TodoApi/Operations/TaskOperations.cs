@@ -64,46 +64,38 @@ public static class TaskOperations
     {
         var task = await FindTaskOrThrowAsync(db, id);
 
-        if (request.ProjectId is int targetProjectId)
+        // If we have a project id and it's different than the current project id, we are moving it
+        // You are allowed to move a project whether or not it's a completed task
+        if (request.ProjectId is int targetProjectId && targetProjectId != task.ProjectId)
         {
             await EnsureProjectExistsAsync(db, targetProjectId);
 
+            // always put it at the bottom of the new task project
             var nextOrder = await NextOrderForProjectAsync(db, targetProjectId);
 
             task.ProjectId = targetProjectId;
             task.Order = nextOrder;
         }
 
-        // The edit lock below turns on two states, both captured here before anything is applied.
-        // A task that arrived complete and is still complete on the way out is closed, and a closed
-        // task can't have its title or description edited. Every other combination is fine:
-        // completing and editing together (it was still open when the request arrived), and
-        // reopening and editing together (it's open again by the time the request finishes).
-        //
-        // Reading both up front, rather than reading task.IsComplete at the lock itself, is what
-        // lets the two blocks below run in either order without changing behavior.
-        //
-        // In practice the frontend sends neither combination, since it toggles completion and edits
-        // fields as separate requests. Splitting completion out into its own endpoint would make
-        // all of this moot, but a single PATCH felt more understandable as an API.
+        // We don't allow modifying the task title or description if you have completed the task
+        // (We do allow you to uncomplete a task and then update the title or description)
+        // Grab the task.IsComplete before we modify the IsComplete status
         var wasComplete = task.IsComplete;
         var willBeComplete = request.IsComplete ?? wasComplete;
 
+        // if we are either completing an incomplete task or uncompleting a completed task
+        // (that is, we are toggling the completion state of a task), then we update it
+        // We write it in this way so that it's idempotent instead of just saying task.IsComplete = !isComplete
         if (request.IsComplete is bool isComplete && task.IsComplete != isComplete)
         {
-            // Idempotent: a repeat of the same state is a no-op (guarded by the `!=` above), so
-            // re-completing an already-complete task keeps its original CompletedAt rather than
-            // resetting the timestamp.
             task.IsComplete = isComplete;
             task.CompletedAt = isComplete ? DateTime.UtcNow : null;
         }
 
+        // If you want to modify the title or description...
         if (request.Title is not null || request.Description is not null)
         {
-            // Closed on arrival and still closed on the way out (see the note above
-            // `wasComplete`): the client has to reopen the task first, either in an earlier
-            // request or in this one. The complete/uncomplete toggle, move, and delete all stay
-            // allowed even while complete -- only Title/Description are blocked here.
+            // ...you can't do that if you are complete
             if (wasComplete && willBeComplete)
             {
                 throw new ForbiddenOperationException(
