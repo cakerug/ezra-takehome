@@ -95,6 +95,20 @@ npm test
 
 Other useful scripts: `npm run build` (type-check + production build), `npm run lint`
 
+### Regenerating the API types
+
+The frontend's zod schemas are generated from the backend's OpenAPI document, making the backend
+the single source of truth for wire shapes. Regenerate them after changing any DTO or endpoint:
+
+```bash
+npm run gen:api
+```
+
+This emits the OpenAPI document to
+`backend/TodoApi/obj/TodoApi.json`, and runs `openapi-zod-client` over it into
+`src/api/generated-schemas.ts`.
+
+
 ## AI Usage
 I had an LLM generate a plan, I reviewed the plan, an LLM executed on the plan, an LLM reviewed the code and then I reviewed the code, in particular the parts I thought were important architecturally and made changes as I saw fit. Notably at the planning stage and code review stages, I had agents with different focuses (e.g., security, user experience) evaluate the plans from different perspectives.
 
@@ -126,7 +140,7 @@ UI (React) --REST/JSON--> API (ASP.NET Core Minimal API) --EF Core--> SQLite fil
 The decisions I made were based on: (1) not trying to over-engineer something -- focusing on what would be necessary for a solo developer product; (2) any explicit criteria called out in the instructions; (3) something that I would actually use; (4) making it production-ready (within reason).
 
 - **Frontend-Backend Communication**:
-    - **Typesafety**: Although kind of unnecessary for an app this scale (developer of 1), because it was explicitly mentioned that one of the evaluation criteria was in this area and because the OpenAPI endpoint was easy to generate, I implemented zod for compile time and runtime type checking. I did not add CI/CD for ensuring the generated types were validated.
+    - **Typesafety**: Although kind of unnecessary for an app this scale (developer of 1), because it was explicitly mentioned that one of the evaluation criteria was in this area and because the OpenAPI endpoint was easy to generate, I implemented zod for compile time and runtime type checking. The document is produced by MSBuild from the compiled assembly rather than scraped from a running server, so regeneration is a single command and would drop into CI without process orchestration. I did not add CI/CD for ensuring the generated types were validated.
     - **Query Framework**: I used react-query because our product/data schema is simple and it gives free caching, retry, request deduping, etc. Instead of configuring it with a longer staleTime or any optimistic writes, I erred towards more refetching because it's cheap, esp with react-query's caching and refetch in background and request deduping. The caching also makes it easy to avoid prop-drilling without paying for an extra fetch. React-query also gives retry, loading/error states for free.
 - **Mutations are mostly pessimistic, not optimistic-with-rollback.** The UI doesn't reflect a create, edit, delete, or moving between projects, instead it invalidates the relevant cache with react-query and re-fetches. Simpler to implement correctly than optimistic updates with rollback, at the cost of a small perceived-latency hit. The only exception is reordering which looked jumpy if we did that.
 - **API Versioning**: Did not version the API. In practice, for small-scale apps this adds additional work and is unnecessary. You can deploy during low-traffic time to avoid any mismatches.

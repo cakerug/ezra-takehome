@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "gen:api": "openapi-zod-client http://localhost:5265/swagger/v1/swagger.json -o src/api/generated-schemas.ts -t codegen/schemas-only.hbs --export-schemas"
+    "gen:api": "dotnet build ../backend/TodoApi -p:OpenApiGenerateDocumentsOnBuild=true && openapi-zod-client ../backend/TodoApi/obj/TodoApi.json -o src/api/generated-schemas.ts -t codegen/schemas-only.hbs --export-schemas"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
