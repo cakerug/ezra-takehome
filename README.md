@@ -179,3 +179,6 @@ There are many directions to take a todo app after the above (e.g., an inbox, sc
 - Product analytics (e.g., Pendo, Amplitude)
 - Switch ids from ints to uuids to make sharding easier (no id conflicts) 
 - e2e tests
+- local caching (staletime) via tanstack query - trading data flow simplicity for caching/perf benefits
+- zustand / redux for larger more complex product surface area
+- style system (modules for conflicts)
