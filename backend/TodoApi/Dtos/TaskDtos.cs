@@ -46,10 +46,10 @@ public class PatchTaskRequest
     // MinLength(1) rather than [Required]: null must stay valid (it means "don't touch Title"),
     // but a non-null value must still be non-empty -- a task's title can be left unchanged, but
     // it can't be *set* to blank, since Title is a non-nullable domain field.
-    [MinLength(1), MaxLength(FieldLengths.TaskTitle)]
+    [MinLength(1), MaxLength(FieldLengths.TaskTitle, ErrorMessage = "Title must be {1} characters or fewer")]
     public string? Title { get; set; }
 
-    [MaxLength(FieldLengths.TaskDescription)]
+    [MaxLength(FieldLengths.TaskDescription, ErrorMessage = "Description must be {1} characters or fewer")]
     public string? Description { get; set; }
 
     public bool? IsComplete { get; set; }
